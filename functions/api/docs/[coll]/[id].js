@@ -1,5 +1,9 @@
 const J=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"content-type":"application/json"}});
-const allowed=(env,req)=>{const e=(req.headers.get("Cf-Access-Authenticated-User-Email")||"").toLowerCase();return !!e&&(env.ALLOWED_EMAILS||"").toLowerCase().split(",").map(s=>s.trim()).includes(e)};
+const allowed=(env,req)=>{
+  const pin=(env.DOJANG_PIN||"123456").trim();
+  const h=(req.headers.get("X-Dojang-Pin")||"").trim();
+  return !!pin && h===pin;
+};
 const valid=p=>/^[a-z]{1,30}$/.test(p.coll)&&/^[A-Za-z0-9_-]{1,80}$/.test(p.id);
 const readBody=async request=>{const b=await request.json();return b&&typeof b==="object"&&!Array.isArray(b)?b:null};
 export async function onRequestPut({params,env,request}){
