@@ -168,7 +168,7 @@ const matchBeltCat=(bi,cat)=>{
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ymd=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
 const hm=()=>new Date().toTimeString().slice(0,5);
-const rp=n=>"Rp"+n.toLocaleString("id-ID");
+const rp=n=>"Rp"+(Number(n)||0).toLocaleString("id-ID");
 const wan=x=>{x=String(x||"").replace(/\D/g,"");return x.startsWith("0")?"62"+x.slice(1):x};
 const slug=s=>String(s||"").trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"item";
 const $=s=>document.querySelector(s);
@@ -188,6 +188,7 @@ if(portalId){
     .then(data=>{
       const d=data.student;
       const sUnit=d.unit||"Terazza";
+      const sFee=Number(d.fee)>0?Number(d.fee):RP;
       const bi=d.v==2?(d.bi||0):[0,1,3,5,7,10][d.bi||0];
       const beltName=BL[bi][0],beltColor=BL[bi][1];
       const nextBelt=bi<10?BL[bi+1][0].toLowerCase():"dan";
@@ -208,7 +209,7 @@ if(portalId){
       const av=k=>{const v=recentEv.map(x=>x[k]).filter(Number.isFinite);return v.length?(v.reduce((p,c)=>p+c,0)/v.length).toFixed(1):"–"};
       const unitClasses=data.classes.filter(c=>(c.unit||"Terazza")===sUnit);
       const nc=unitClasses[0]||data.classes[0];
-      const waKonfirm="Halo Sabeum Shandy, saya orang tua/wali dari "+d.n+" (Unit "+sUnit+") ingin konfirmasi iuran bulan "+ymNow+" ("+rp(RP)+") di Supreme Taekwondo.";
+      const waKonfirm="Halo Sabeum Shandy, saya orang tua/wali dari "+d.n+" (Unit "+sUnit+") ingin konfirmasi iuran bulan "+ymNow+" ("+rp(sFee)+") di Supreme Taekwondo.";
       const cutiBanner=d.cuti?`<div class="note" style="border-left-color:#F2B600"><b>Status Murid: Sedang Cuti</b>${d.cutiKet?" · "+esc(d.cutiKet):""}${d.cutiTgl?" (sejak "+esc(d.cutiTgl)+")":""}</div>`:"";
 
       $("#app").innerHTML=`
@@ -242,7 +243,7 @@ if(portalId){
             <h3 style="margin:16px 0 4px">Catatan Sabeum Shandy</h3>
             <p style="margin:0 0 16px">${esc(d.note||"Terus semangat berlatih dan jaga kedisiplinan di rumah maupun dojang!")}</p>
             <div class="row" style="border-top:1px solid var(--ln);margin-top:12px">
-              <span><b>Status Iuran (${ymNow})</b><br><span class="mu">${rp(RP)} / bulan</span></span>
+              <span><b>Status Iuran (${ymNow})</b><br><span class="mu">${rp(sFee)} / bulan</span></span>
               <span>${d.cuti?'<span class="pill leave">Sedang Cuti</span>':isLunas?'<span class="pill ok">✓ Sudah Lunas</span>':`<span class="pill warn">Belum Lunas</span> <a class="btn" style="margin-left:8px" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(waKonfirm)}">Konfirmasi via WA</a>`}</span>
             </div>
           </div>
@@ -458,7 +459,7 @@ if(portalId){
           <h2>Lembar Penilaian Murid Aktif</h2>
           <span class="mu">Skala nilai 1 (Kurang) sampai 5 (Sangat Baik)</span>
         </div>
-        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
           <div><label>Tanggal Latihan</label><input id="cDateInp" type="date" value="${cDate}"></div>
           <span id="cSaveSt" class="pill">${esc(cStatus||(existing?"Tersimpan di server":"Siap diisi (auto-save)"))}</span>
         </div>
@@ -597,13 +598,23 @@ const getUnits=()=>{
   J.forEach(c=>{if(c.unit)m.set(slug(c.unit),c.unit)});
   return [...m.values()];
 };
-function ensureUnit(name){
+const unitFee=uName=>{
+  const clean=String(uName||"Terazza").trim();
+  const doc=UList.find(u=>slug(u.name||u.id)===slug(clean));
+  const f=doc&&Number(doc.fee);
+  return f>0?f:RP;
+};
+function ensureUnit(name,fee){
   const clean=String(name||"").trim();
   if(!clean)return "Terazza";
   const existing=getUnits().find(u=>slug(u)===slug(clean));
-  if(existing)return existing;
-  if(db)db.collection("units").doc(slug(clean)).set({name:clean,createdAt:new Date().toISOString()}).catch(()=>{});
-  return clean;
+  const target=existing||clean;
+  const numFee=Number(fee);
+  if(!existing||numFee>0){
+    const nextFee=numFee>0?numFee:unitFee(target);
+    if(db)db.collection("units").doc(slug(target)).set({name:target,fee:nextFee,updatedAt:new Date().toISOString()}).catch(()=>{});
+  }
+  return target;
 }
 const unitS=()=>curUnit==="all"?S:S.filter(s=>(s.unit||"Terazza")===curUnit);
 const activeS=()=>unitS().filter(s=>!s.cuti);
@@ -864,15 +875,15 @@ V.pen=()=>{
   </div>`;
 };
 
-V.iur=()=>{const uAll=unitS(),act=activeS(),cuti=uAll.filter(s=>s.cuti),ids=((P.find(x=>x.id==ym)||{}).ids)||{},c=act.filter(s=>ids[s.id]).length;
-return need()+`<div class="top"><h1>Iuran bulanan</h1><div><label>Bulan</label><input id="ym" type="month" value="${ym}"></div></div>`+(uAll.length?`<div class="kpis"><div class="kpi"><strong>${rp(c*RP)}</strong>Terkumpul (${esc(unitLabel())})</div><div class="kpi"><strong>${rp((act.length-c)*RP)}</strong>Belum masuk (${act.length-c} aktif)</div></div><div class="sec"><h2>Daftar iuran murid aktif (${rp(RP)} per murid)</h2>${act.map(s=>`<div class="row"><span><span class="dot" style="background:${s.c}"></span>${s.n} ${curUnit==="all"?`<span class="pill">${esc(s.unit)}</span>`:`""`}</span><span>${ids[s.id]?"":`<a class="btn ghost" target="_blank" rel="noopener" href="https://wa.me/${wan(s.wa)}?text=${encodeURIComponent("Halo, pengingat iuran "+s._n+" (Unit "+s.unit+") bulan "+ym+" sebesar "+rp(RP)+" di Supreme Taekwondo. Terima kasih.")}">Ingatkan</a> `}<label><input type="checkbox" data-py="${s.id}" ${ids[s.id]?"checked":""}> Lunas</label></span></div>`).join("")}${cuti.length?`<h3 style="margin:20px 0 6px">Murid Sedang Cuti (${cuti.length} — bebas tagihan)</h3>${cuti.map(s=>`<div class="row"><span><span class="dot" style="background:${s.c}"></span>${s.n} <span class="pill">${esc(s.unit)}</span> <span class="mu">${esc(s.cutiKet||"")}</span></span><span class="pill leave">Cuti</span></div>`).join("")}`:""}</div>`:emp())};
+V.iur=()=>{const uAll=unitS(),act=activeS(),cuti=uAll.filter(s=>s.cuti),ids=((P.find(x=>x.id==ym)||{}).ids)||{},paidAct=act.filter(s=>ids[s.id]),unpaidAct=act.filter(s=>!ids[s.id]),totPaid=paidAct.reduce((sum,s)=>sum+unitFee(s.unit),0),totUnpaid=unpaidAct.reduce((sum,s)=>sum+unitFee(s.unit),0),subTitle=curUnit==="all"?"Tarif sesuai masing-masing unit":"Tarif unit "+curUnit+": "+rp(unitFee(curUnit))+"/bulan";
+return need()+`<div class="top"><div><h1>Iuran bulanan</h1><span class="mu">${esc(subTitle)}</span></div><div><label>Bulan</label><input id="ym" type="month" value="${ym}"></div></div>`+(uAll.length?`<div class="kpis"><div class="kpi"><strong>${rp(totPaid)}</strong>Terkumpul (${paidAct.length} murid)</div><div class="kpi"><strong>${rp(totUnpaid)}</strong>Belum masuk (${unpaidAct.length} aktif)</div></div><div class="sec"><h2>Daftar iuran murid aktif</h2>${act.map(s=>{const f=unitFee(s.unit);return`<div class="row"><span><span class="dot" style="background:${s.c}"></span>${s.n} ${curUnit==="all"?`<span class="pill">${esc(s.unit)}</span>`:`""`} <span class="mu">· ${rp(f)}</span></span><span>${ids[s.id]?"":`<a class="btn ghost" target="_blank" rel="noopener" href="https://wa.me/${wan(s.wa)}?text=${encodeURIComponent("Halo, pengingat iuran "+s._n+" (Unit "+s.unit+") bulan "+ym+" sebesar "+rp(f)+" di Supreme Taekwondo. Terima kasih.")}">Ingatkan</a> `}<label><input type="checkbox" data-py="${s.id}" ${ids[s.id]?"checked":""}> Lunas</label></span></div>`}).join("")}${cuti.length?`<h3 style="margin:20px 0 6px">Murid Sedang Cuti (${cuti.length} — bebas tagihan)</h3>${cuti.map(s=>`<div class="row"><span><span class="dot" style="background:${s.c}"></span>${s.n} <span class="pill">${esc(s.unit)}</span> <span class="mu">${esc(s.cutiKet||"")}</span></span><span class="pill leave">Cuti</span></div>`).join("")}`:""}</div>`:emp())};
 V.uji=()=>{const uAll=unitS();return need()+`<div class="top"><div><h1>Ujian kenaikan sabuk</h1><span class="mu">Tandai siap ujian di Laporan murid, lalu tombol Luluskan muncul di sini. Klik dua kali untuk konfirmasi kenaikan sabuk.</span></div></div>`+(uAll.length?`<div class="sec">${[...activeS()].sort((a,b)=>(!!b.siap-!!a.siap)||b.pct-a.pct).map(s=>`<div class="row"><span style="flex:1"><span class="dot" style="background:${s.c}"></span>${s.n} ${curUnit==="all"?`<span class="pill">${esc(s.unit)}</span>`:`""`} <span class="mu">${s.b} → ${s.nx}</span>${s.siap?' <span class="pill">Siap ujian</span>':""}
 <div class="meter"><i style="width:${s.pct}%"></i></div></span><span style="display:flex;gap:10px;align-items:center"><b>${s.pct}%</b>${s.siap&&s.bi<10?`<button class="btn" style="${cfLulus==s.id?"background:var(--ok)":""}" data-a="lulus" data-id="${s.id}">${cfLulus==s.id?"Yakin naik ke "+s.nx+"?":"Luluskan ke "+s.nx}</button>${cfLulus==s.id?`<button class="btn ghost" data-a="batalLulus">Batal</button>`:`""`}`:""}</span></div>`).join("")}</div>`:emp())};
 V.jad=()=>{const units=getUnits(),uClasses=unitJ(),defU=curUnit==="all"?"Terazza":curUnit;
 return need()+`<div class="top"><h1>Jadwal &amp; Unit Dojang</h1></div>
-<div class="sec"><h2>Kelola Unit Dojang</h2><p class="mu">Tambahkan nama unit dojang baru di sini agar muncul di pilihan seluruh menu.</p>
-<div style="display:flex;gap:10px;flex-wrap:wrap;max-width:480px;margin-bottom:14px"><input id="newUnitInp" type="text" placeholder="Ketik nama dojang baru (misal: Gading Serpong)..." style="flex:1"><button class="btn" data-a="addUnit">Tambah Unit</button></div>
-<div class="chips" style="margin-bottom:0">${units.map(u=>`<span class="pill" style="padding:6px 12px;font-size:13px">🥋 ${esc(u)} (${S.filter(s=>s.unit===u).length} murid)</span>`).join("")}</div></div>
+<div class="sec"><h2>Kelola Unit Dojang &amp; Tarif Iuran</h2><p class="mu">Atur tarif iuran bulanan berbeda untuk setiap unit dojang, atau tambahkan unit dojang baru.</p>
+<div class="f" style="max-width:620px;margin-bottom:16px"><div><label>Nama Unit Dojang Baru</label><input id="newUnitInp" type="text" placeholder="Misal: Gading Serpong"></div><div><label>Tarif Iuran Bulanan (Rp)</label><input id="newUnitFee" type="number" min="0" step="10000" value="500000"></div><div style="display:flex;align-items:flex-end"><button class="btn" data-a="addUnit">Tambah Unit</button></div></div>
+${units.map(u=>`<div class="row" style="flex-wrap:wrap"><span><b>🥋 ${esc(u)}</b> <span class="mu">(${S.filter(s=>s.unit===u).length} murid)</span></span><span style="display:flex;gap:8px;align-items:center"><span class="mu" style="font-size:13px">Rp</span><input id="ufee_${slug(u)}" type="number" min="0" step="10000" value="${unitFee(u)}" style="width:140px;padding:7px 9px"><button class="btn ghost" data-a="saveUnitFee" data-unit="${esc(u)}">Simpan Tarif</button></span></div>`).join("")}</div>
 <div class="sec"><h2>Tambah kelas (${esc(unitLabel())})</h2><datalist id="unitList">${units.map(u=>`<option value="${esc(u)}">`).join("")}</datalist><div class="f"><div><label>Unit Dojang</label><input id="ju" type="text" list="unitList" value="${esc(defU)}"></div><div><label>Hari</label><input id="jh" type="text" placeholder="Selasa"></div><div><label>Jam</label><input id="jj" type="text" placeholder="18.00 – 20.00"></div><div><label>Lokasi</label><input id="jl" type="text" placeholder="Terazza 301 / PIK 2"></div><div><label>Pelatih</label><input id="jp" type="text" placeholder="Sabeum Shandy"></div></div><p><button class="btn" data-a="cls">Simpan kelas</button></p>${uClasses.map(c=>`<div class="row"><span><b>${esc(c.h)}, ${esc(c.j)}</b> <span class="pill">${esc(c.unit||"Terazza")}</span><br><span class="mu">${esc(c.l)} · ${esc(c.p)}</span></span><button class="btn ghost dn" data-a="dc" data-id="${c.id}">Hapus</button></div>`).join("")}</div>`};
 const ol=V.lap;V.lap=()=>{if(!unitS().length)return need()+emp();return ol()};
 
@@ -942,8 +953,16 @@ try{
 if(a=="addUnit"){
   const rawU=v("newUnitInp");
   if(!rawU)return toast("Ketik nama unit dojang dulu");
-  const uName=ensureUnit(rawU);
-  toast("Unit "+uName+" ditambahkan!");
+  const feeVal=+v("newUnitFee")||RP;
+  const uName=ensureUnit(rawU,feeVal);
+  toast("Unit "+uName+" ("+rp(feeVal)+") ditambahkan!");
+}
+else if(a=="saveUnitFee"){
+  const uName=b.dataset.unit;
+  const feeVal=+v("ufee_"+slug(uName));
+  if(!(feeVal>0))return toast("Masukkan nominal iuran yang valid");
+  await C("units").doc(slug(uName)).set({name:uName,fee:feeVal,updatedAt:new Date().toISOString()});
+  toast("Tarif "+uName+" diubah ke "+rp(feeVal));
 }
 else if(a=="save"){
   const isFoto=document.getElementById("ff").checked;
