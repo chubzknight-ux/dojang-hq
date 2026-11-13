@@ -26,7 +26,9 @@ export async function onRequestGet({env,request}){
   }
   const sUnit=st.unit||"Terazza";
   const uDoc=units.find(u=>String(u.name||"").toLowerCase()===sUnit.toLowerCase());
-  const fee=(uDoc&&Number(uDoc.fee)>0)?Number(uDoc.fee):500000;
+  const uFee=(uDoc&&Number(uDoc.fee)>0)?Number(uDoc.fee):500000;
+  const hasCustom=st.fee!==undefined&&st.fee!==null&&st.fee!==""&&Number(st.fee)>=0;
+  const fee=hasCustom?Number(st.fee):uFee;
 
   return J({
     student:{
