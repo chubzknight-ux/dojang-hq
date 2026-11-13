@@ -12,9 +12,9 @@
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 Barlow,system-ui,sans-serif;display:grid;grid-template-columns:220px 1fr;min-height:100vh}
-body.portal-mode{grid-template-columns:1fr}
-body.portal-mode nav{display:none}
-body.portal-mode main{margin:0 auto;max-width:860px}
+body.standalone-portal{grid-template-columns:1fr}
+body.standalone-portal nav{display:none}
+body.standalone-portal main{margin:0 auto;max-width:880px}
 h1,h2,h3{font-family:"Barlow Condensed",Impact,sans-serif;font-weight:700;margin:0;letter-spacing:.01em}
 h1{font-size:34px;line-height:1.05}h2{font-size:22px}h3{font-size:18px}
 nav{background:var(--sf);border-right:1px solid var(--ln);padding:20px 12px;display:flex;flex-direction:column;gap:4px}
@@ -115,7 +115,7 @@ nav{overflow-y:auto}
 <div id="pinGate" style="display:none">
   <div class="card">
     <h2 style="font-size:28px;margin-bottom:4px">Dojang HQ</h2>
-    <p class="mu" style="margin:0 0 18px">Supreme Taekwondo Terazza · Masukkan PIN Pelatih</p>
+    <p class="mu" style="margin:0 0 18px">Supreme Taekwondo Terazza · Masukkan PIN Admin</p>
     <input id="pinInp" type="password" inputmode="numeric" placeholder="Masukkan PIN..." style="margin-bottom:12px;font-size:18px;letter-spacing:2px">
     <p id="pinErr" style="color:var(--rd);font-size:13px;margin:0 0 12px;display:none">PIN salah. Silakan coba lagi.</p>
     <button id="pinBtn" class="btn" style="width:100%;text-align:center">Masuk ke Dojang HQ</button>
@@ -128,7 +128,10 @@ nav{overflow-y:auto}
 <main id="app"></main>
 <div id="toast" role="status"></div>
 <script>
-const portalId=(new URLSearchParams(location.search).get("portal")||"").trim();
+const params=new URLSearchParams(location.search);
+const portalId=(params.get("portal")||"").trim();
+const isCoachPortal=params.has("pelatih")||params.has("coach");
+
 const mk=(c,t,n)=>n==1?`linear-gradient(90deg,${c} 0 38%,${t} 38% 62%,${c} 62%)`:n==2?`linear-gradient(90deg,${c} 0 28%,${t} 28% 42%,${c} 42% 58%,${t} 58% 72%,${c} 72%)`:c;
 const BL=[["Putih",mk("#FFFFFF")],["Kuning",mk("#F2C200")],["Kuning strip",mk("#F2C200","#2E9E5B",1)],["Hijau",mk("#2E9E5B")],["Hijau strip",mk("#2E9E5B","#2457C5",1)],["Biru",mk("#2457C5")],["Biru strip",mk("#2457C5","#C8102E",1)],["Merah",mk("#C8102E")],["Merah strip 1",mk("#C8102E","#111111",1)],["Merah strip 2",mk("#C8102E","#111111",2)],["Hitam",mk("#111111")]],SK=["Poomsae","Kyorugi","Kekuatan","Kelenturan","Disiplin"],RP=500000;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -146,7 +149,7 @@ const lb=k.map((x,i)=>{const[p,q]=pt(i,122);return`<text x="${p}" y="${q}" text-
 return`<svg viewBox="0 0 220 220" width="100%" style="max-width:300px" role="img" aria-label="Grafik keterampilan: ${k.map(x=>x+" "+sk[x]).join(", ")}"><polygon points="${poly(100)}" fill="none" stroke="var(--ln)"/><polygon points="${poly(50)}" fill="none" stroke="var(--ln)"/><polygon points="${own}" fill="var(--bl)" fill-opacity=".25" stroke="var(--bl)" stroke-width="2"/>${lb}</svg>`}
 
 if(portalId){
-  document.body.classList.add("portal-mode");
+  document.body.classList.add("standalone-portal");
   const ymNow=ymd().slice(0,7);
   $("#app").innerHTML=`<div class="sec"><h2>Memuat Portal Orang Tua...</h2><p class="mu">Mohon tunggu sebentar.</p></div>`;
   fetch("/api/portal?id="+encodeURIComponent(portalId),{cache:"no-store"})
@@ -234,6 +237,224 @@ if(portalId){
     .catch(()=>{
       $("#app").innerHTML=`<div class="sec"><h2>Data Murid Tidak Ditemukan</h2><p class="mu">Pastikan tautan Portal Orang Tua yang Anda buka sudah benar dari Sabeum Shandy.</p></div>`;
     });
+
+} else if(isCoachPortal){
+  document.body.classList.add("standalone-portal");
+  let cData={students:[],evaluations:[],classes:[],coaches:[]};
+  let activeCoach=localStorage.getItem("portal_coach_name")||"";
+  let cDate=ymd(),cStatus="",cTimer=null;
+
+  function allKnownCoaches(){
+    const m=new Map();
+    ["Sabeum Shandy","Master Juwono"].forEach(n=>m.set(slug(n),n));
+    cData.classes.forEach(c=>String(c.p||"").split(",").forEach(p=>{const t=p.trim();if(t)m.set(slug(t),t)}));
+    cData.coaches.forEach(c=>{if(c.name)m.set(slug(c.name),c.name)});
+    cData.evaluations.forEach(e=>{if(e.coach)m.set(slug(e.coach),e.coach)});
+    return [...m.values()];
+  }
+
+  function getCoachEval(date,coach){
+    const s=slug(coach);
+    return cData.evaluations.find(x=>{
+      const d=x.date||x.id.slice(0,10);
+      if(d!==date)return false;
+      if(!x.coach && x.id===date)return true;
+      return slug(x.coach||"")===s;
+    });
+  }
+
+  async function registerAndSelectCoach(name){
+    const clean=String(name||"").trim();
+    if(!clean)return toast("Isi nama pelatih dulu");
+    activeCoach=clean;
+    localStorage.setItem("portal_coach_name",clean);
+    cStatus="";
+    renderCoachPortal();
+    await fetch("/api/coach",{
+      method:"POST",
+      headers:{"content-type":"application/json"},
+      body:JSON.stringify({action:"register_coach",id:slug(clean),name:clean})
+    }).catch(()=>{});
+    loadCoachData();
+  }
+
+  async function saveCoachEval(silent){
+    if(!activeCoach)return;
+    const existing=getCoachEval(cDate,activeCoach);
+    const docId=existing?existing.id:(cDate+"__"+slug(activeCoach));
+    const ev={...((existing&&existing.ev)||{})};
+    cData.students.forEach(st=>{
+      const r={};
+      document.querySelectorAll('[data-cev="'+st.id+'"]').forEach(el=>{if(el.value)r[el.dataset.k]=+el.value});
+      const note=((document.querySelector('[data-cen="'+st.id+'"]')||{}).value||"").trim();
+      if(Object.keys(r).length||note)ev[st.id]={...r,n:note};
+      else delete ev[st.id];
+    });
+    const updatedAt=ymd()+" "+hm();
+    const payload={date:cDate,coach:activeCoach,updatedAt,ev};
+    cStatus="Menyimpan otomatis...";
+    const stEl=document.getElementById("cSaveSt");if(stEl)stEl.textContent=cStatus;
+    try{
+      const res=await fetch("/api/coach",{
+        method:"POST",
+        headers:{"content-type":"application/json"},
+        body:JSON.stringify({action:"save_eval",id:docId,data:payload})
+      });
+      if(!res.ok)throw new Error(res.status);
+      const idx=cData.evaluations.findIndex(x=>x.id===docId);
+      if(idx>=0)cData.evaluations[idx]={id:docId,...payload};
+      else cData.evaluations.push({id:docId,...payload});
+      cStatus="✓ Tersimpan otomatis ("+hm()+")";
+      const stEl2=document.getElementById("cSaveSt");if(stEl2)stEl2.textContent=cStatus;
+      if(!silent)toast("Penilaian tersimpan!");
+    }catch(err){
+      cStatus="Gagal menyimpan";
+      const stEl3=document.getElementById("cSaveSt");if(stEl3)stEl3.textContent=cStatus;
+      if(!silent)toast("Gagal menyimpan ke server");
+    }
+  }
+
+  function queueCoachAutoSave(){
+    cStatus="Mengetik...";
+    const stEl=document.getElementById("cSaveSt");if(stEl)stEl.textContent=cStatus;
+    clearTimeout(cTimer);
+    cTimer=setTimeout(()=>saveCoachEval(true),650);
+  }
+
+  function renderCoachPortal(){
+    const known=allKnownCoaches();
+    if(!activeCoach){
+      $("#app").innerHTML=`
+        <div class="hero">
+          <div class="hl">
+            <span>Portal Penilaian Pelatih · Supreme Taekwondo Terazza</span>
+            <h1>Selamat Bertugas, Sabeum</h1>
+            <p>Pilih nama Anda di bawah ini, atau daftarkan nama pelatih baru (cukup 1x saja).</p>
+          </div>
+          <div class="hr">
+            <span>Mode Akses</span>
+            <b>Khusus<br>Penilaian</b>
+            <small>Auto-save aktif</small>
+          </div>
+        </div>
+        <div class="sec">
+          <h2>1. Pilih Nama Pelatih Terdaftar</h2>
+          <div class="chips" style="margin-top:12px">
+            ${known.map(n=>`<button class="chip" data-ca="choose" data-name="${esc(n)}">🥋 ${esc(n)}</button>`).join("")}
+          </div>
+          <hr style="border:0;border-top:1px solid var(--ln);margin:20px 0">
+          <h2>2. Atau Daftar Pelatih Baru (Tersimpan Otomatis)</h2>
+          <p class="mu" style="margin:0 0 10px">Jika nama Anda belum ada di atas, ketik nama lengkap pelatih di bawah ini agar tersimpan untuk sesi berikutnya.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;max-width:460px">
+            <input id="newCoachInp" type="text" placeholder="Contoh: Sabeum Budi / Master Juwono" style="flex:1">
+            <button class="btn" data-ca="register">Simpan &amp; Mulai Menilai</button>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const existing=getCoachEval(cDate,activeCoach);
+    const ev=(existing&&existing.ev)||{};
+    const sortedStudents=[...cData.students].sort((a,b)=>String(a.n||"").localeCompare(String(b.n||""),"id"));
+    const myLogs=cData.evaluations
+      .filter(x=>slug(x.coach||"")===slug(activeCoach))
+      .sort((a,b)=>(b.updatedAt||b.date||b.id).localeCompare(a.updatedAt||a.date||a.id));
+
+    $("#app").innerHTML=`
+      <div class="hero">
+        <div class="hl">
+          <span>Portal Penilaian Pelatih · Supreme Taekwondo Terazza</span>
+          <h1>${esc(activeCoach)}</h1>
+          <p>Nilai otomatis tersimpan setiap kali Anda memilih skor atau menulis catatan.</p>
+        </div>
+        <div class="hr">
+          <span>Sesi Latihan</span>
+          <b>${esc(cDate)}</b>
+          <small><button class="btn" style="background:rgba(255,255,255,.2);box-shadow:none;padding:6px 12px;margin-top:6px" data-ca="switchCoach">Ganti Pelatih</button></small>
+        </div>
+      </div>
+
+      <div class="top">
+        <div>
+          <h2>Lembar Penilaian Murid (${sortedStudents.length} murid)</h2>
+          <span class="mu">Skala nilai 1 (Kurang) sampai 5 (Sangat Baik)</span>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+          <div><label>Tanggal Latihan</label><input id="cDateInp" type="date" value="${cDate}"></div>
+          <span id="cSaveSt" class="pill">${esc(cStatus||(existing?"Tersimpan di server":"Siap diisi (auto-save)"))}</span>
+        </div>
+      </div>
+
+      <div class="sec">
+        ${sortedStudents.length?sortedStudents.map(st=>{
+          const bi=st.v==2?(st.bi||0):[0,1,3,5,7,10][st.bi||0];
+          const bName=BL[bi][0],bCol=BL[bi][1];
+          const x=ev[st.id]||{};
+          return `<div class="row" style="flex-wrap:wrap">
+            <span style="flex:1 1 180px"><span class="dot" style="background:${bCol}"></span><b>${esc(st.n)}</b> <span class="mu">Sabuk ${esc(bName.toLowerCase())}</span></span>
+            <span class="ev">${[["t","Teknik"],["k","Sikap"],["f","Fisik"]].map(([k,l])=>`<label>${l}<select data-cev="${st.id}" data-k="${k}"><option value="">–</option>${[1,2,3,4,5].map(n=>`<option ${x[k]==n?"selected":""}>${n}</option>`).join("")}</select></label>`).join("")}</span>
+            <input data-cen="${st.id}" type="text" placeholder="Catatan singkat dari ${esc(activeCoach)}" value="${esc(x.n||"")}" style="flex:1 1 100%;margin-top:6px">
+          </div>`;
+        }).join(""):`<p class="mu">Belum ada data murid.</p>`}
+        <p style="margin-top:16px"><button class="btn" data-ca="saveNow">Simpan Sekarang</button></p>
+      </div>
+
+      <div class="sec">
+        <h2>📜 Log Riwayat Penilaian Anda (${myLogs.length} sesi)</h2>
+        ${myLogs.length?myLogs.map(item=>{
+          const dStr=item.date||item.id.slice(0,10);
+          const entries=Object.entries(item.ev||{});
+          const summary=entries.map(([sid,val])=>{
+            const st=sortedStudents.find(z=>z.id===sid);
+            return `${esc(st?st.n:"Murid")} (T:${val.t||"–"}/S:${val.k||"–"}/F:${val.f||"–"})`;
+          }).join(" • ");
+          return `<div class="row" style="flex-wrap:wrap">
+            <div style="flex:1 1 250px">
+              <b>${esc(dStr)}</b> <span class="pill">${entries.length} murid dinilai</span>
+              ${item.updatedAt?`<span class="mu" style="font-size:12px;margin-left:6px">update ${esc(item.updatedAt)}</span>`:""}
+              <div class="mu" style="font-size:13px;margin-top:4px">${summary||"Belum ada rincian nilai"}</div>
+            </div>
+            <button class="btn ghost" data-ca="openDate" data-date="${esc(dStr)}">Buka / Edit</button>
+          </div>`;
+        }).join(""):`<p class="mu">Belum ada riwayat penilaian dari ${esc(activeCoach)}.</p>`}
+      </div>
+    `;
+  }
+
+  async function loadCoachData(){
+    try{
+      const r=await fetch("/api/coach",{cache:"no-store"});
+      if(!r.ok)throw new Error(r.status);
+      cData=await r.json();
+      if(!document.activeElement?.closest?.("#app input,#app select"))renderCoachPortal();
+    }catch(e){
+      toast("Gagal memuat data pelatih");
+    }
+  }
+
+  document.addEventListener("click",e=>{
+    const b=e.target.closest("[data-ca]");if(!b)return;
+    const act=b.dataset.ca;
+    if(act==="choose")registerAndSelectCoach(b.dataset.name);
+    else if(act==="register")registerAndSelectCoach(($("#newCoachInp")||{}).value);
+    else if(act==="switchCoach"){localStorage.removeItem("portal_coach_name");activeCoach="";renderCoachPortal();}
+    else if(act==="saveNow")saveCoachEval(false);
+    else if(act==="openDate"){cDate=b.dataset.date||cDate;cStatus="";renderCoachPortal();window.scrollTo({top:0,behavior:"smooth"});}
+  });
+  document.addEventListener("change",e=>{
+    const t=e.target;
+    if(t.id==="cDateInp"){cDate=t.value||cDate;cStatus="";renderCoachPortal();return;}
+    if(t.dataset.cev)queueCoachAutoSave();
+  });
+  document.addEventListener("input",e=>{
+    if(e.target.dataset.cen)queueCoachAutoSave();
+  });
+
+  $("#app").innerHTML=`<div class="sec"><h2>Memuat Portal Pelatih...</h2><p class="mu">Mohon tunggu sebentar.</p></div>`;
+  loadCoachData();
+  setInterval(loadCoachData,15000);
+
 } else {
 let __pin=localStorage.getItem("dojang_pin")||"";
 const __hdr=(extra={})=>({"X-Dojang-Pin":__pin,...extra});
@@ -327,7 +548,7 @@ if(cur=="kon"){const c=$("#cap"),pv=$("#pv");c.oninput=()=>{$("#cnt").textConten
 $("#cig").onclick=()=>{ig=!ig;draw();toast(ig?"Instagram terhubung (contoh)":"Instagram diputuskan")};
 $("#pub").onclick=()=>{if(!c.value.trim())return toast("Tulis keterangan dulu");const t=[$("#p1").checked&&"Instagram",$("#p2").checked&&"Situs"].filter(Boolean);if(!t.length)return toast("Pilih tujuan unggahan");Q.unshift({t:c.value.slice(0,60),p:t.join(" + "),d:$("#dt").value?"Terjadwal":"Terbit"});draw();toast("Terbit")}}}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-v],[data-s],[data-l]");if(!b)return;if(b.dataset.v)cur=b.dataset.v;if(b.dataset.s)sel=+b.dataset.s;if(b.dataset.l){sel=+b.dataset.l;cur="lap"}draw()});
-let ST="",RW=null,db=null,A=[],P=[],Lz=[],J=[],E=[],ed=null,cf=null,cfLulus=null,ad=ymd(),ym=ymd().slice(0,7);
+let ST="",RW=null,db=null,A=[],P=[],Lz=[],J=[],E=[],CList=[],ed=null,cf=null,cfLulus=null,ad=ymd(),ym=ymd().slice(0,7);
 let coachName=localStorage.getItem("dojang_coach")||"Sabeum Shandy",evSaveStatus="",evTimer=null;
 
 function sync(docs){S.length=0;docs.forEach(d=>{const s={...d,_n:d.n,_note:d.note||"Belum ada catatan."};s.bi=d.v==2?(d.bi||0):[0,1,3,5,7,10][d.bi||0];s.n=esc(d.n);s.note=esc(d.note||"Belum ada catatan.");s.b="Sabuk "+BL[s.bi][0].toLowerCase();s.c=BL[s.bi][1];s.nx=s.bi<10?BL[s.bi+1][0].toLowerCase():"dan";s.sk=s.sk||{};SK.forEach(k=>s.sk[k]=s.sk[k]??50);s.pct=s.pct||0;S.push(s)})
@@ -344,12 +565,14 @@ const need=()=>`<div class="note" style="display:flex;justify-content:space-betw
 const emp=()=>`<div class="sec"><h2>Belum ada murid</h2><p class="mu">Tambahkan murid pertama, atau muat contoh data untuk mencoba.</p><button class="btn" data-a="add">Tambah murid</button> <button class="btn ghost" data-a="seed">Muat contoh data</button></div>`;
 
 function getCoaches(){
-  const set=new Set(["Sabeum Shandy","Master Juwono"]);
-  try{JSON.parse(localStorage.getItem("dojang_coaches")||"[]").forEach(c=>{if(c)set.add(c)})}catch(e){}
-  J.forEach(c=>String(c.p||"").split(",").forEach(p=>{const t=p.trim();if(t)set.add(t)}));
-  E.forEach(x=>{if(x.coach)set.add(x.coach)});
-  if(coachName.trim())set.add(coachName.trim());
-  return [...set];
+  const m=new Map();
+  ["Sabeum Shandy","Master Juwono"].forEach(n=>m.set(slug(n),n));
+  try{JSON.parse(localStorage.getItem("dojang_coaches")||"[]").forEach(c=>{if(c)m.set(slug(c),c)})}catch(e){}
+  CList.forEach(c=>{if(c.name)m.set(slug(c.name),c.name)});
+  J.forEach(c=>String(c.p||"").split(",").forEach(p=>{const t=p.trim();if(t)m.set(slug(t),t)}));
+  E.forEach(x=>{if(x.coach)m.set(slug(x.coach),x.coach)});
+  if(coachName.trim())m.set(slug(coachName),coachName.trim());
+  return [...m.values()];
 }
 function rememberCoach(name){
   const n=String(name||"").trim();
@@ -358,6 +581,7 @@ function rememberCoach(name){
   const list=getCoaches();
   if(!list.includes(n))list.push(n);
   localStorage.setItem("dojang_coaches",JSON.stringify(list));
+  if(db)db.collection("coaches").doc(slug(n)).set({name:n,updatedAt:new Date().toISOString()}).catch(()=>{});
 }
 function findEvalDoc(date,coach){
   const cSlug=slug(coach);
@@ -458,8 +682,12 @@ V.pen=()=>{
   }).join(""):`<p class="mu">Belum ada riwayat log penilaian.</p>`;
 
   return need()+`
+  <div class="note" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <span><b>Link Portal Khusus Pelatih:</b> Bagikan tautan ini ke asisten pelatih agar bisa langsung menilai tanpa melihat Dashboard/Iuran/PIN Admin.</span>
+    <button class="btn" data-a="copyCoachPortal">Salin Link Portal Pelatih</button>
+  </div>
   <div class="top">
-    <div><h1>Penilaian kelas</h1><span class="mu">Multi-pelatih &amp; Auto-save aktif. Setiap pelatih punya lembar penilaian terpisah di tanggal yang sama.</span></div>
+    <div><h1>Penilaian kelas</h1><span class="mu">Multi-pelatih &amp; Auto-save aktif.</span></div>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <div><label>Tanggal sesi</label><input id="ad" type="date" value="${ad}"></div>
       <div><label>Nama pelatih penilai</label><input id="coachInp" type="text" list="coachList" value="${esc(coachName)}" placeholder="Ketik nama pelatih..."></div>
@@ -511,6 +739,12 @@ if(a=="copyPortal"){
   const url=location.origin+"/?portal="+encodeURIComponent(id);
   try{await navigator.clipboard.writeText(url);toast("Link Portal Orang Tua disalin!")}
   catch(err){prompt("Salin link Portal Orang Tua di bawah ini:",url)}
+  return;
+}
+if(a=="copyCoachPortal"){
+  const url=location.origin+"/?pelatih=1";
+  try{await navigator.clipboard.writeText(url);toast("Link Portal Pelatih disalin!")}
+  catch(err){prompt("Salin link Portal Pelatih di bawah ini:",url)}
   return;
 }
 if(!db)return toast("Masukkan PIN terlebih dahulu");
@@ -566,13 +800,13 @@ try{await db.doc((att?"attendance/":"payments/")+key).set(att?{date:key,ids}:{id
 
 (async()=>{try{const c=window.claude&&await claude.use("db");if(!c)return;db=c;
 const sub=(n,f)=>db.collection(n).onSnapshot(q=>{f(q.docs.map(d=>({id:d.id,...d.data()})));if(!document.activeElement?.closest?.("#app input,#app textarea,#app select"))draw()},()=>toast("Data belum bisa dimuat"));
-sub("students",sync);sub("attendance",x=>A=x);sub("payments",x=>P=x);sub("leads",x=>Lz=x);sub("evaluations",x=>E=x);sub("classes",x=>J=x);draw()}catch(e){}})();
+sub("students",sync);sub("attendance",x=>A=x);sub("payments",x=>P=x);sub("leads",x=>Lz=x);sub("evaluations",x=>E=x);sub("classes",x=>J=x);sub("coaches",x=>CList=x);draw()}catch(e){}})();
 draw();
 
 const ol2=V.lap;V.lap=()=>{const s=S[sel];if(!s)return ol2();const rdy=s.pct>=70&&s.bi<10;const rb=`<div class="note" style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><span>${s.siap?`<b>Ditandai siap ujian naik sabuk ke ${s.nx}</b> · progres ${s.pct}%`:rdy?`<b>Progres sudah 70% ke atas</b> · belum ditandai siap ujian`:`Belum siap ujian · progres ${s.pct}% (target 70%)`}</span>${s.bi<10?`<button class="btn" data-a="tanda" data-id="${s.id}">${s.siap?"Batalkan tanda siap":"Tandai siap ujian"}</button>`:""}</div>`;const es=E.filter(x=>x.ev&&x.ev[s.id]).sort((a,b)=>(a.date||a.id)<(b.date||b.id)?1:-1);const av=k=>{const v=es.map(x=>x.ev[s.id][k]).filter(Number.isFinite);return v.length?(v.reduce((p,c)=>p+c,0)/v.length).toFixed(1):"–"};
 return rb+ol2()+`<div class="sec" style="margin-top:20px"><h2>Penilaian kelas</h2><div class="kpis"><div class="kpi"><strong>${av("t")}</strong>Rata-rata teknik</div><div class="kpi"><strong>${av("k")}</strong>Rata-rata sikap</div><div class="kpi"><strong>${av("f")}</strong>Rata-rata fisik</div><div class="kpi"><strong>${es.length}</strong>Catatan nilai</div></div>${es.length?es.map(x=>`<div class="row"><span><b>${esc(x.date||x.id)}</b> · <span class="pill">${esc(x.coach||"Pelatih")}</span><br><span class="mu">${esc(x.ev[s.id].n||"Tanpa catatan")}</span></span><span class="mu">T ${x.ev[s.id].t||"–"} · S ${x.ev[s.id].k||"–"} · F ${x.ev[s.id].f||"–"}</span></div>`).join(""):`<p class="mu">Belum ada penilaian untuk murid ini.</p>`}</div>`};
 
-const DCOL=["students","attendance","payments","leads","classes","evaluations"];
+const DCOL=["students","attendance","payments","leads","classes","evaluations","coaches"];
 const dlFile=async(name,text)=>{let dl=null;try{dl=window.claude?await claude.use("downloads"):null}catch(e){}if(dl){try{await dl.save({filename:name,data:text});return}catch(e){}}const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();a.remove()};
 V.dat=()=>need()+`<div class="top"><div><h1>Data &amp; cadangan</h1><span class="mu">Simpan cadangan data ke file, atau pulihkan dari file cadangan.</span></div></div><div class="sec"><h2>Ekspor</h2><p class="mu">Unduh semua data murid, absensi, iuran, penilaian, dan jadwal dalam satu file.</p><button class="btn" data-a="exp">Unduh cadangan (.json)</button></div><div class="sec"><h2>Impor</h2><p class="mu">Data dengan ID yang sama akan diganti. Data lain tetap ada.</p><input type="file" id="impf" accept="application/json,.json"></div>`;
 document.addEventListener("click",async e=>{const b=e.target.closest('[data-a="exp"]');if(!b)return;if(!db)return toast("Belum terhubung. Tunggu halaman siap.");try{const out={exported:new Date().toISOString(),data:{}};for(const c of DCOL){const q=await db.collection(c).get();out.data[c]=q.docs.map(d=>({id:d.id,...d.data()}))}await dlFile("dojang-backup-"+ymd()+".json",JSON.stringify(out,null,2));toast("Cadangan dibuat")}catch(x){toast("Gagal membuat cadangan")}});
