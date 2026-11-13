@@ -1,6 +1,6 @@
 const J=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"content-type":"application/json"}});
 const allowed=(env,req)=>{
-  const pin=(env.DOJANG_PIN||"123456").trim();
+  const pin=(env.DOJANG_PIN||"251025").trim();
   const h=(req.headers.get("X-Dojang-Pin")||"").trim();
   return !!pin && h===pin;
 };
