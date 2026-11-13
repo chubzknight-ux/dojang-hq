@@ -840,6 +840,25 @@ if(a=="copyCoachPortal"){
   catch(err){prompt("Salin link Portal Pelatih di bawah ini:",url)}
   return;
 }
+if(a=="ghRun"){
+  const tok=document.getElementById("ghTok").value.trim();
+  const raw=document.getElementById("ghPkg").value.trim();
+  const resBox=document.getElementById("ghRes");
+  if(!tok)return toast("Isi GitHub Token dulu");
+  if(!raw)return toast("Tempel paket update JSON dulu");
+  localStorage.setItem("dojang_gh_tok",tok);
+  let pkg;try{pkg=JSON.parse(raw)}catch(err){return toast("Format paket JSON tidak valid")}
+  resBox.innerHTML=`<span class="pill">Mengirim ke GitHub...</span>`;
+  try{
+    const r=await fetch("/api/deploy",{method:"POST",headers:__hdr({"content-type":"application/json"}),body:JSON.stringify({token:tok,mode:b.dataset.mode,title:pkg.title,files:pkg.files})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||"Gagal");
+    if(d.mode==="pr")resBox.innerHTML=`<div class="note">✓ Pull Request berhasil dibuat! <a class="btn" style="margin-left:8px" target="_blank" rel="noopener" href="${esc(d.prUrl)}">Buka &amp; Merge PR</a></div>`;
+    else resBox.innerHTML=`<div class="note">✓ Berhasil di-update ke main! Tunggu ~30 detik lalu tekan Ctrl+F5.</div>`;
+    document.getElementById("ghPkg").value="";
+  }catch(err){resBox.innerHTML=`<span class="pill warn">Error: ${esc(err.message)}</span>`;}
+  return;
+}
 if(!db)return toast("Masukkan PIN terlebih dahulu");
 const C=n=>db.collection(n),v=i=>document.getElementById(i).value.trim();
 try{
@@ -906,7 +925,7 @@ return rb+ol2()+`<div class="sec" style="margin-top:20px"><h2>Penilaian kelas</h
 
 const DCOL=["students","attendance","payments","leads","classes","evaluations","coaches"];
 const dlFile=async(name,text)=>{let dl=null;try{dl=window.claude?await claude.use("downloads"):null}catch(e){}if(dl){try{await dl.save({filename:name,data:text});return}catch(e){}}const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();a.remove()};
-V.dat=()=>need()+`<div class="top"><div><h1>Data &amp; cadangan</h1><span class="mu">Simpan cadangan data ke file, atau pulihkan dari file cadangan.</span></div></div><div class="sec"><h2>Ekspor</h2><p class="mu">Unduh semua data murid, absensi, iuran, penilaian, dan jadwal dalam satu file.</p><button class="btn" data-a="exp">Unduh cadangan (.json)</button></div><div class="sec"><h2>Impor</h2><p class="mu">Data dengan ID yang sama akan diganti. Data lain tetap ada.</p><input type="file" id="impf" accept="application/json,.json"></div>`;
+V.dat=()=>need()+`<div class="top"><div><h1>Data &amp; cadangan</h1><span class="mu">Simpan cadangan data ke file, atau pulihkan dari file cadangan.</span></div></div><div class="sec"><h2>Ekspor</h2><p class="mu">Unduh semua data murid, absensi, iuran, penilaian, dan jadwal dalam satu file.</p><button class="btn" data-a="exp">Unduh cadangan (.json)</button></div><div class="sec"><h2>Impor</h2><p class="mu">Data dengan ID yang sama akan diganti. Data lain tetap ada.</p><input type="file" id="impf" accept="application/json,.json"></div><div class="sec"><h2>🚀 Update Aplikasi Otomatis (GitHub)</h2><p class="mu">Simpan GitHub Token sekali saja. Ke depannya cukup tempel paket update dan klik tombol di bawah tanpa buka GitHub manual.</p><label>GitHub Personal Access Token</label><input id="ghTok" type="password" placeholder="github_pat_..." value="${esc(localStorage.getItem("dojang_gh_tok")||"")}" style="margin-bottom:10px"><label>Paket Update (JSON dari Asisten)</label><textarea id="ghPkg" rows="4" placeholder='Tempel kode paket update di sini...'></textarea><div id="ghRes" style="margin-top:10px"></div><p style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button class="btn" data-a="ghRun" data-mode="pr">Buat Pull Request di GitHub</button><button class="btn ghost" data-a="ghRun" data-mode="direct">Update Langsung ke Main</button></p></div>`;
 document.addEventListener("click",async e=>{const b=e.target.closest('[data-a="exp"]');if(!b)return;if(!db)return toast("Belum terhubung. Tunggu halaman siap.");try{const out={exported:new Date().toISOString(),data:{}};for(const c of DCOL){const q=await db.collection(c).get();out.data[c]=q.docs.map(d=>({id:d.id,...d.data()}))}await dlFile("dojang-backup-"+ymd()+".json",JSON.stringify(out,null,2));toast("Cadangan dibuat")}catch(x){toast("Gagal membuat cadangan")}});
 document.addEventListener("change",async e=>{if(e.target.id!="impf")return;const f=e.target.files[0];if(!f)return;if(!db)return toast("Belum terhubung");try{const j=JSON.parse(await f.text());const dt=j.data||{};let n=0;for(const c of DCOL){for(const r of (dt[c]||[])){const {id,...rest}=r;await db.collection(c).doc(id).set(rest);n++}}toast("Impor selesai: "+n+" data");draw()}catch(x){toast("File tidak valid")}e.target.value=""});
 }
