@@ -118,6 +118,9 @@ table.att-tbl{width:100%;border-collapse:collapse;font-size:14px}
 table.att-tbl th,table.att-tbl td{padding:9px 8px;border-bottom:1px solid var(--ln);text-align:left;white-space:nowrap}
 table.att-tbl th{font-size:12px;color:var(--mu);text-transform:uppercase;letter-spacing:.04em}
 table.att-tbl td.c,table.att-tbl th.c{text-align:center}
+.ses-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 10px;border-radius:999px;background:var(--tint);color:var(--bl);font-weight:500}
+.ses-pill button{all:unset;cursor:pointer;color:var(--rd);font-weight:700;padding:0 4px;border-radius:999px;line-height:1}
+.ses-pill button:hover{background:rgba(200,16,46,.15)}
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E1430">
@@ -655,7 +658,6 @@ const wa=sapaOrtu+"berikut ringkasan perkembangan ananda "+s._n+" di Supreme Tae
 "Pantau laporan lengkap, jadwal & status iuran anak secara langsung di Portal Orang Tua:\n"+portalUrl;
 const fk=familyKey(s);
 const famAll=fk.startsWith("id:")?[s]:S.filter(x=>!x.cuti&&familyKey(x)===fk);
-const sibs=famAll.filter(x=>x.id!==s.id);
 let waFam="";
 if(famAll.length>1){
   const detailSibs=famAll.map((ch,idx)=>{
@@ -709,7 +711,7 @@ if(cur=="kon"){const c=$("#cap"),pv=$("#pv");c.oninput=()=>{$("#cnt").textConten
 $("#cig").onclick=()=>{ig=!ig;draw();toast(ig?"Instagram terhubung (contoh)":"Instagram diputuskan")};
 $("#pub").onclick=()=>{if(!c.value.trim())return toast("Tulis keterangan dulu");const t=[$("#p1").checked&&"Instagram",$("#p2").checked&&"Situs"].filter(Boolean);if(!t.length)return toast("Pilih tujuan unggahan");Q.unshift({t:c.value.slice(0,60),p:t.join(" + "),d:$("#dt").value?"Terjadwal":"Terbit"});draw();toast("Terbit")}}autoMark();applyAdminFilterDOM()}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-v],[data-sid],[data-lid]");if(!b)return;if(b.dataset.v)cur=b.dataset.v;if(b.dataset.sid)selId=b.dataset.sid;if(b.dataset.lid){selId=b.dataset.lid;cur="lap"}draw()});
-let ST="",RW=null,db=null,A=[],P=[],Lz=[],J=[],E=[],CList=[],ed=null,cf=null,cfCls=null,cfCoach=null,cfReset=null,cfLulus=null,ad=ymd(),ym=ymd().slice(0,7);
+let ST="",RW=null,db=null,A=[],P=[],Lz=[],J=[],E=[],CList=[],ed=null,cf=null,cfCls=null,cfCoach=null,cfReset=null,cfLulus=null,cfAtt=null,ad=ymd(),ym=ymd().slice(0,7);
 let coachName=localStorage.getItem("dojang_coach")||"Sabeum Shandy",evSaveStatus="",evTimer=null;
 let fSearch="",fBelt="all";
 
@@ -876,7 +878,8 @@ V.abs=()=>{
     const badge=totSes?(pct>=80?`<span class="pill ok">${pct}%</span>`:pct>=50?`<span class="pill">${pct}%</span>`:`<span class="pill warn">${pct}%</span>`):`<span class="mu">–</span>`;
     return `<tr><td><span class="dot" style="background:${s.c}"></span><b>${s.n}</b>${curUnit==="all"?` <span class="pill">${esc(s.unit)}</span>`:`""`}</td><td class="c"><b>${h}</b></td><td class="c">${abs}</td><td class="c">${totSes}</td><td class="c">${badge}</td></tr>`;
   }).join("");
-  const repSec=`<div class="sec"><div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:14px"><div><h2>📊 Laporan Absensi Bulanan (${ym})</h2><span class="mu">Total ${totSes} sesi tercatat · Rata-rata kehadiran ${avgAtt}%</span></div><div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div><label>Pilih Bulan</label><input id="ym" type="month" value="${ym}"></div><button class="btn ghost" data-a="copyAttRep">Salin Ringkasan WA</button></div></div>${totSes?`<div class="chips" style="margin-bottom:14px">${mSes.map(x=>{const cnt=act.filter(s=>x.ids&&x.ids[s.id]).length;return`<span class="pill">📅 ${x.id.slice(5)} (${cnt}/${act.length})</span>`}).join("")}</div>`:``}<div class="tbl-wrap"><table class="att-tbl"><thead><tr><th>Nama Murid</th><th class="c">Hadir</th><th class="c">Tidak Hadir</th><th class="c">Total Sesi</th><th class="c">Persentase</th></tr></thead><tbody>${repRows}</tbody></table></div></div>`;
+  const sesChips=mSes.map(x=>{const cnt=act.filter(s=>x.ids&&x.ids[s.id]).length;const isCf=cfAtt===x.id;return`<span class="ses-pill"><span>📅 ${x.id.slice(5)} (${cnt}/${act.length})</span><button type="button" data-a="delAtt" data-id="${x.id}" title="Hapus sesi latihan ini">${isCf?"Yakin hapus?":"×"}</button>${isCf?`<button type="button" data-a="batalDelAtt" style="color:var(--mu)">Batal</button>`:`""`}</span>`}).join("");
+  const repSec=`<div class="sec"><div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:14px"><div><h2>📊 Laporan Absensi Bulanan (${ym})</h2><span class="mu">Total ${totSes} sesi tercatat · Rata-rata kehadiran ${avgAtt}%</span></div><div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div><label>Pilih Bulan</label><input id="ym" type="month" value="${ym}"></div><button class="btn ghost" data-a="copyAttRep">Salin Ringkasan WA</button></div></div>${totSes?`<div class="chips" style="margin-bottom:14px">${sesChips}</div>`:``}<div class="tbl-wrap"><table class="att-tbl"><thead><tr><th>Nama Murid</th><th class="c">Hadir</th><th class="c">Tidak Hadir</th><th class="c">Total Sesi</th><th class="c">Persentase</th></tr></thead><tbody>${repRows}</tbody></table></div></div>`;
   return need()+`<div class="top"><h1>Absensi</h1><div><label>Tanggal latihan</label><input id="ad" type="date" value="${ad}"></div></div>`+
   (uAll.length?`<div class="sec"><h2>Hadir ${c} dari ${act.length} murid aktif · ${esc(unitLabel())}${cutiN?` <span class="mu" style="font-size:15px">(${cutiN} cuti disembunyikan)</span>`:``}</h2>${renderFilterBox(act.length)}${act.map(s=>`<label class="row" data-srow="1" data-name="${esc(s._n.toLowerCase())}" data-bi="${s.bi}"><span><span class="dot" style="background:${s.c}"></span>${s.n} ${curUnit==="all"?`<span class="pill">${esc(s.unit)}</span>`:`""`} <span class="mu">${s.b} · ${s.att}% total</span></span><input type="checkbox" data-ab="${s.id}" ${ids[s.id]?"checked":""} style="width:22px;height:22px"></label>`).join("")}</div>`+repSec:emp());
 };
@@ -973,6 +976,7 @@ if(a=="edit"){ed=S.find(s=>s.id==id);return draw()}
 if(a=="cancel"){ed=null;return draw()}
 if(a=="batalLulus"){cfLulus=null;return draw()}
 if(a=="batalDc"){cfCls=null;return draw()}
+if(a=="batalDelAtt"){cfAtt=null;return draw()}
 if(a=="batalDelCoach"){cfCoach=null;return draw()}
 if(a=="batalReset"){cfReset=null;return draw()}
 if(a=="pickCoach"){
@@ -1065,6 +1069,7 @@ else if(a=="save"){
   ed=null;toast("Tersimpan");
 }
 else if(a=="del"){if(cf!=id){cf=id;return draw()}await C("students").doc(id).delete();cf=null;toast("Murid dihapus")}
+else if(a=="delAtt"){if(cfAtt!=id){cfAtt=id;return draw()}await C("attendance").doc(id).delete();cfAtt=null;toast("Sesi latihan "+id+" dihapus")}
 else if(a=="seed"){for(const s of [["Alya Putri","Perempuan","Ibu Rina",9,1,88,[82,60,70,85,92]],["Raka Pratama","Laki-laki","Bpk. Doni",11,2,62,[68,74,80,55,70]],["Nadia Wijaya","Perempuan","Ibu Rina",8,0,91,[75,48,55,78,95]],["Kevin Santoso","Laki-laki","Bpk. Hendra",13,3,74,[80,82,76,66,78]]])await C("students").add({n:s[0],gender:s[1],ortu:s[2],unit:"Terazza",fee:null,a:s[3],v:2,bi:s[4],pct:s[5],sk:Object.fromEntries(SK.map((k,i)=>[k,s[6][i]])),note:"",cuti:false,cutiKet:"",cutiTgl:"",foto:true,fotoTgl:ymd(),wa:""});toast("Contoh data dimuat")}
 else if(a=="lead"){if(!v("ln"))return toast("Isi nama calon murid");const uName=ensureUnit(v("lu")||"Terazza");await C("leads").add({n:v("ln"),unit:uName,a:+v("la")||0,wa:v("lw")});toast("Tercatat")}
 else if(a=="conv"){const l=Lz.find(x=>x.id==id);await C("students").add({n:l.n,gender:"",ortu:"",unit:l.unit||"Terazza",fee:null,a:l.a,v:2,bi:0,pct:0,sk:{},wa:l.wa,note:"",cuti:false,cutiKet:"",cutiTgl:"",foto:false,fotoTgl:""});await C("leads").doc(id).delete();toast("Jadi murid")}
