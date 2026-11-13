@@ -12,6 +12,9 @@
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 Barlow,system-ui,sans-serif;display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+body.portal-mode{grid-template-columns:1fr}
+body.portal-mode nav{display:none}
+body.portal-mode main{margin:0 auto;max-width:860px}
 h1,h2,h3{font-family:"Barlow Condensed",Impact,sans-serif;font-weight:700;margin:0;letter-spacing:.01em}
 h1{font-size:34px;line-height:1.05}h2{font-size:22px}h3{font-size:18px}
 nav{background:var(--sf);border-right:1px solid var(--ln);padding:20px 12px;display:flex;flex-direction:column;gap:4px}
@@ -51,6 +54,8 @@ textarea,select,input[type=datetime-local]{width:100%;font:inherit;color:var(--i
 label.tg{display:flex;gap:8px;align-items:center;margin:6px 0}
 .pv{background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:14px;white-space:pre-wrap;min-height:120px}
 .pill{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--tint);color:var(--bl)}
+.pill.ok{background:rgba(30,123,79,.15);color:var(--ok);font-weight:600}
+.pill.warn{background:rgba(200,16,46,.15);color:var(--rd);font-weight:600}
 .note{background:var(--tint);border-radius:6px;padding:10px 12px;font-size:14px;margin-bottom:14px}
 details{border-bottom:1px solid var(--ln);padding:10px 0}summary{cursor:pointer;font-weight:600}
 details p{margin:6px 0 0;color:var(--mu)}
@@ -123,6 +128,117 @@ nav{overflow-y:auto}
 <main id="app"></main>
 <div id="toast" role="status"></div>
 <script>
+const portalId=(new URLSearchParams(location.search).get("portal")||"").trim();
+const mk=(c,t,n)=>n==1?`linear-gradient(90deg,${c} 0 38%,${t} 38% 62%,${c} 62%)`:n==2?`linear-gradient(90deg,${c} 0 28%,${t} 28% 42%,${c} 42% 58%,${t} 58% 72%,${c} 72%)`:c;
+const BL=[["Putih",mk("#FFFFFF")],["Kuning",mk("#F2C200")],["Kuning strip",mk("#F2C200","#2E9E5B",1)],["Hijau",mk("#2E9E5B")],["Hijau strip",mk("#2E9E5B","#2457C5",1)],["Biru",mk("#2457C5")],["Biru strip",mk("#2457C5","#C8102E",1)],["Merah",mk("#C8102E")],["Merah strip 1",mk("#C8102E","#111111",1)],["Merah strip 2",mk("#C8102E","#111111",2)],["Hitam",mk("#111111")]],SK=["Poomsae","Kyorugi","Kekuatan","Kelenturan","Disiplin"],RP=500000;
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ymd=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+const rp=n=>"Rp"+n.toLocaleString("id-ID");
+const wan=x=>{x=String(x||"").replace(/\D/g,"");return x.startsWith("0")?"62"+x.slice(1):x};
+const $=s=>document.querySelector(s);
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");setTimeout(()=>t.classList.remove("on"),2200)}
+function radar(sk){const k=Object.keys(sk),c=110,r=78;const pt=(i,v)=>{const a=-Math.PI/2+i*2*Math.PI/k.length;return[(c+Math.cos(a)*r*v/100).toFixed(1),(c+Math.sin(a)*r*v/100).toFixed(1)]};
+const poly=v=>k.map((_,i)=>pt(i,v).join(",")).join(" ");
+const own=k.map((x,i)=>pt(i,sk[x]).join(",")).join(" ");
+const lb=k.map((x,i)=>{const[p,q]=pt(i,122);return`<text x="${p}" y="${q}" text-anchor="middle" font-size="12" fill="var(--mu)">${x}</text>`}).join("");
+return`<svg viewBox="0 0 220 220" width="100%" style="max-width:300px" role="img" aria-label="Grafik keterampilan: ${k.map(x=>x+" "+sk[x]).join(", ")}"><polygon points="${poly(100)}" fill="none" stroke="var(--ln)"/><polygon points="${poly(50)}" fill="none" stroke="var(--ln)"/><polygon points="${own}" fill="var(--bl)" fill-opacity=".25" stroke="var(--bl)" stroke-width="2"/>${lb}</svg>`}
+
+if(portalId){
+  document.body.classList.add("portal-mode");
+  const ymNow=ymd().slice(0,7);
+  $("#app").innerHTML=`<div class="sec"><h2>Memuat Portal Orang Tua...</h2><p class="mu">Mohon tunggu sebentar.</p></div>`;
+  fetch("/api/portal?id="+encodeURIComponent(portalId),{cache:"no-store"})
+    .then(r=>r.ok?r.json():Promise.reject(r.status))
+    .then(data=>{
+      const d=data.student;
+      const bi=d.v==2?(d.bi||0):[0,1,3,5,7,10][d.bi||0];
+      const beltName=BL[bi][0],beltColor=BL[bi][1];
+      const nextBelt=bi<10?BL[bi+1][0].toLowerCase():"dan";
+      const sk=d.sk||{};SK.forEach(k=>sk[k]=sk[k]??50);
+      const since=d.sejak||"0000-00-00";
+      const sesSince=data.attendance.filter(x=>x.id>=since);
+      const attRate=sesSince.length?sesSince.filter(x=>x.hadir).length/sesSince.length:0;
+      const evSince=data.evaluations.filter(x=>x.id>=since);
+      const r=[];evSince.forEach(x=>["t","k","f"].forEach(k=>{if(Number.isFinite(x[k]))r.push(x[k])}));
+      const scRate=r.length?r.reduce((p,c)=>p+c,0)/r.length/5:0;
+      const pct=Math.round((scRate*0.7+attRate*0.3)*100);
+      const attTotal=data.attendance.length?Math.round(data.attendance.filter(x=>x.hadir).length/data.attendance.length*100):0;
+
+      const payCur=data.payments.find(x=>x.id===ymNow);
+      const isLunas=!!(payCur&&payCur.lunas);
+      const recentAtt=[...data.attendance].sort((a,b)=>a.id<b.id?1:-1).slice(0,8);
+      const recentEv=[...data.evaluations].sort((a,b)=>a.id<b.id?1:-1);
+      const av=k=>{const v=recentEv.map(x=>x[k]).filter(Number.isFinite);return v.length?(v.reduce((p,c)=>p+c,0)/v.length).toFixed(1):"–"};
+      const nc=data.classes[0];
+
+      const waKonfirm="Halo Sabeum Shandy, saya orang tua/wali dari "+d.n+" ingin konfirmasi iuran bulan "+ymNow+" ("+rp(RP)+") di Supreme Taekwondo Terazza.";
+
+      $("#app").innerHTML=`
+        <div class="hero">
+          <div class="hl">
+            <span>Portal Orang Tua · Supreme Taekwondo Terazza</span>
+            <h1>${esc(d.n)}</h1>
+            <p>${d.a?d.a+" tahun · ":""}Sabuk ${esc(beltName)}</p>
+          </div>
+          <div class="hr">
+            <span>Jadwal kelas berikutnya</span>
+            <b>${nc?esc(nc.h)+"<br>"+esc(nc.j):"Hubungi<br>Pelatih"}</b>
+            <small>${nc?esc(nc.l)+" · "+esc(nc.p):"Supreme Taekwondo Terazza"}</small>
+          </div>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi"><strong>${pct}%</strong>Progres ke sabuk ${nextBelt}</div>
+          <div class="kpi"><strong>${attTotal}%</strong>Kehadiran total</div>
+          <div class="kpi"><strong>${isLunas?"Lunas":"Belum"}</strong>Iuran bulan ${ymNow}</div>
+          <div class="kpi"><strong>${d.siap?"Siap":"Proses"}</strong>Status ujian sabuk</div>
+        </div>
+
+        <div class="grid">
+          <div class="sec">
+            <h2>Perkembangan &amp; Catatan Pelatih</h2>
+            <p class="mu" style="margin:0 0 12px"><span class="dot" style="background:${beltColor}"></span>Sabuk ${esc(beltName)} ${d.sejak?"(sejak "+esc(d.sejak)+")":""}</p>
+            <b>Progres menuju sabuk ${nextBelt}: ${pct}%</b>
+            <div class="meter"><i style="width:${pct}%"></i></div>
+            <b>Kehadiran latihan: ${attTotal}%</b>
+            <div class="meter"><i style="width:${attTotal}%"></i></div>
+            <h3 style="margin:16px 0 4px">Catatan Sabeum Shandy</h3>
+            <p style="margin:0 0 16px">${esc(d.note||"Terus semangat berlatih dan jaga kedisiplinan di rumah maupun dojang!")}</p>
+            <div class="row" style="border-top:1px solid var(--ln);margin-top:12px">
+              <span><b>Status Iuran (${ymNow})</b><br><span class="mu">${rp(RP)} / bulan</span></span>
+              <span>${isLunas?'<span class="pill ok">✓ Sudah Lunas</span>':`<span class="pill warn">Belum Lunas</span> <a class="btn" style="margin-left:8px" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(waKonfirm)}">Konfirmasi via WA</a>`}</span>
+            </div>
+          </div>
+
+          <div class="sec">
+            <h2>Grafik Keterampilan</h2>
+            ${radar(sk)}
+            ${Object.entries(sk).map(([k,v])=>`<div class="sk"><span>${k}</span><div class="meter"><i style="width:${v}%"></i></div><b>${v}</b></div>`).join("")}
+          </div>
+        </div>
+
+        <div class="grid" style="margin-top:20px">
+          <div class="sec">
+            <h2>Penilaian Kelas (${recentEv.length} sesi)</h2>
+            <div class="kpis" style="margin-bottom:14px">
+              <div class="kpi"><strong>${av("t")}</strong>Teknik</div>
+              <div class="kpi"><strong>${av("k")}</strong>Sikap</div>
+              <div class="kpi"><strong>${av("f")}</strong>Fisik</div>
+            </div>
+            ${recentEv.length?recentEv.slice(0,6).map(x=>`<div class="row"><span><b>${x.id}</b><br><span class="mu">${esc(x.n||"Latihan reguler")}</span></span><span class="mu">T ${x.t||"–"} · S ${x.k||"–"} · F ${x.f||"–"}</span></div>`).join(""):`<p class="mu">Belum ada catatan penilaian sesi.</p>`}
+          </div>
+
+          <div class="sec">
+            <h2>Riwayat Kehadiran Terakhir</h2>
+            ${recentAtt.length?recentAtt.map(x=>`<div class="row"><span>Tanggal ${x.id}</span><span>${x.hadir?'<span class="pill ok">Hadir</span>':'<span class="pill warn">Tidak Hadir</span>'}</span></div>`).join(""):`<p class="mu">Belum ada data kehadiran.</p>`}
+          </div>
+        </div>
+      `;
+    })
+    .catch(()=>{
+      $("#app").innerHTML=`<div class="sec"><h2>Data Murid Tidak Ditemukan</h2><p class="mu">Pastikan tautan Portal Orang Tua yang Anda buka sudah benar dari Sabeum Shandy.</p></div>`;
+    });
+} else {
 let __pin=localStorage.getItem("dojang_pin")||"";
 const __hdr=(extra={})=>({"X-Dojang-Pin":__pin,...extra});
 let __cache={},__subs=[];
@@ -167,38 +283,34 @@ document.getElementById("pinBtn").onclick=()=>{
 document.getElementById("pinInp").onkeydown=e=>{if(e.key==="Enter")document.getElementById("pinBtn").click()};
 __pull().catch(()=>{});setInterval(()=>__pull().catch(()=>{}),15000);
 
-const S=[
-{n:"Alya Putri",a:9,b:"Sabuk kuning",c:"#F2C200",nx:"hijau",att:92,pct:88,sk:{Poomsae:82,Kyorugi:60,Kekuatan:70,Kelenturan:85,Disiplin:92},note:"Poomsae Taegeuk 1 sudah rapi. Fokus berikutnya jarak dan timing tendangan saat sparring ringan."}];
+const S=[];
 const D=[["Putih",12,"#FFFFFF"],["Kuning",9,"#F2C200"],["Hijau",8,"#2E9E5B"],["Biru",6,"#2457C5"],["Merah",4,"#C8102E"],["Hitam",3,"#111111"]];
 const W=[78,82,75,88,90,84,86,86];
 const FT=[];
 let cur="dash",sel=0,ig=false,Q=[{t:"Latihan Selasa: dasar tendangan dollyo chagi",p:"Instagram + Situs",d:"Terbit"}];
-const $=s=>document.querySelector(s);
-function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");setTimeout(()=>t.classList.remove("on"),2200)}
-function radar(sk){const k=Object.keys(sk),c=110,r=78;const pt=(i,v)=>{const a=-Math.PI/2+i*2*Math.PI/k.length;return[(c+Math.cos(a)*r*v/100).toFixed(1),(c+Math.sin(a)*r*v/100).toFixed(1)]};
-const poly=v=>k.map((_,i)=>pt(i,v).join(",")).join(" ");
-const own=k.map((x,i)=>pt(i,sk[x]).join(",")).join(" ");
-const lb=k.map((x,i)=>{const[p,q]=pt(i,122);return`<text x="${p}" y="${q}" text-anchor="middle" font-size="12" fill="var(--mu)">${x}</text>`}).join("");
-return`<svg viewBox="0 0 220 220" width="100%" style="max-width:300px" role="img" aria-label="Grafik keterampilan: ${k.map(x=>x+" "+sk[x]).join(", ")}"><polygon points="${poly(100)}" fill="none" stroke="var(--ln)"/><polygon points="${poly(50)}" fill="none" stroke="var(--ln)"/><polygon points="${own}" fill="var(--bl)" fill-opacity=".25" stroke="var(--bl)" stroke-width="2"/>${lb}</svg>`}
 const V={
-dash(){const tot=D.reduce((s,x)=>s+x[1],0);
-return`<div class="hero"><div class="hl"><span>Ringkasan dojang minggu ini</span><h1>Selamat datang, Sabeum Shandy</h1><p>Supreme Taekwondo Terazza</p></div><div class="hr"><span>Kelas berikutnya</span><b>Selasa<br>18.00 – 20.00</b><small>Dipimpin Sabeum Shandy</small></div></div>`},
+dash(){return""},
 lap(){const s=S[sel];
 const mAtt=A.filter(x=>x.id.startsWith(ym));
 const mHadir=mAtt.filter(x=>x.ids&&x.ids[s.id]).length;
 const mEv=E.filter(x=>x.id.startsWith(ym)&&x.ev&&x.ev[s.id]);
 const mAvg=k=>{const v=mEv.map(x=>x.ev[s.id][k]).filter(Number.isFinite);return v.length?(v.reduce((p,c)=>p+c,0)/v.length).toFixed(1)+"/5":"–"};
+const portalUrl=location.origin+"/?portal="+encodeURIComponent(s.id);
 const wa="Halo Orang Tua/Wali dari "+s._n+", berikut ringkasan perkembangan di Supreme Taekwondo Terazza (Bulan "+ym+"):\n"+
 "• Sabuk saat ini: "+s.b+" (progres ke "+s.nx+": "+s.pct+"%)\n"+
 "• Kehadiran bulan "+ym+": "+mHadir+" dari "+mAtt.length+" sesi (Total keseluruhan: "+s.att+"%)\n"+
 "• Rata-rata nilai bulan ini: Teknik "+mAvg("t")+", Sikap "+mAvg("k")+", Fisik "+mAvg("f")+"\n"+
-"• Catatan Sabeum: "+s._note;
+"• Catatan Sabeum: "+s._note+"\n\n"+
+"Pantau laporan lengkap, jadwal & status iuran anak secara langsung di Portal Orang Tua:\n"+portalUrl;
 return`<div class="top"><h1>Laporan performa murid</h1></div><div class="chips" role="group" aria-label="Pilih murid">${S.map((x,i)=>`<button class="chip" aria-pressed="${i==sel}" data-s="${i}"><span class="av" style="background:${x.c}">${x.n[0]}</span>${x.n}</button>`).join("")}</div>
 <div class="grid"><div class="sec"><h2>${s.n}</h2><p class="mu" style="margin:0 0 14px">${s.a} tahun · <span class="dot" style="background:${s.c}"></span>${s.b}</p>
 <b>Progres menuju sabuk ${s.nx}: ${s.pct}%</b><div class="meter"><i style="width:${s.pct}%"></i></div>
 <b>Kehadiran total: ${s.att}%</b><div class="meter"><i style="width:${s.att}%"></i></div>
 <h3 style="margin:16px 0 4px">Catatan pelatih</h3><p style="margin:0 0 16px">${s.note}</p>
-<a class="btn" target="_blank" rel="noopener" href="https://wa.me/${wan(s.wa)}?text=${encodeURIComponent(wa)}">Kirim ringkasan bulan ${ym} ke WhatsApp</a></div>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+  <a class="btn" target="_blank" rel="noopener" href="https://wa.me/${wan(s.wa)}?text=${encodeURIComponent(wa)}">Kirim WA + Link Portal</a>
+  <button class="btn ghost" data-a="copyPortal" data-id="${s.id}">Salin Link Portal Orang Tua</button>
+</div></div>
 <div class="sec"><h2>Keterampilan</h2>${radar(s.sk)}${Object.entries(s.sk).map(([k,v])=>`<div class="sk"><span>${k}</span><div class="meter"><i style="width:${v}%"></i></div><b>${v}</b></div>`).join("")}</div></div>`},
 kon(){return`<div class="top"><h1>Konten &amp; Instagram</h1><span class="pill">${ig?"Terhubung: @supremetaekwondo_id_terazza":"Belum terhubung"}</span></div>
 <div class="note"><b>Syarat integrasi:</b> akun Instagram harus bertipe Professional (Business atau Creator). Akun pribadi tidak bisa tampil di situs atau diposting dari situs sejak API lama dimatikan pada Desember 2024. Perpindahan tipe akun gratis dan dilakukan di pengaturan Instagram.</div>
@@ -219,14 +331,7 @@ if(cur=="kon"){const c=$("#cap"),pv=$("#pv");c.oninput=()=>{$("#cnt").textConten
 $("#cig").onclick=()=>{ig=!ig;draw();toast(ig?"Instagram terhubung (contoh)":"Instagram diputuskan")};
 $("#pub").onclick=()=>{if(!c.value.trim())return toast("Tulis keterangan dulu");const t=[$("#p1").checked&&"Instagram",$("#p2").checked&&"Situs"].filter(Boolean);if(!t.length)return toast("Pilih tujuan unggahan");Q.unshift({t:c.value.slice(0,60),p:t.join(" + "),d:$("#dt").value?"Terjadwal":"Terbit"});draw();toast("Terbit")}}}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-v],[data-s],[data-l]");if(!b)return;if(b.dataset.v)cur=b.dataset.v;if(b.dataset.s)sel=+b.dataset.s;if(b.dataset.l){sel=+b.dataset.l;cur="lap"}draw()});
-const mk=(c,t,n)=>n==1?`linear-gradient(90deg,${c} 0 38%,${t} 38% 62%,${c} 62%)`:n==2?`linear-gradient(90deg,${c} 0 28%,${t} 28% 42%,${c} 42% 58%,${t} 58% 72%,${c} 72%)`:c;
-const BL=[["Putih",mk("#FFFFFF")],["Kuning",mk("#F2C200")],["Kuning strip",mk("#F2C200","#2E9E5B",1)],["Hijau",mk("#2E9E5B")],["Hijau strip",mk("#2E9E5B","#2457C5",1)],["Biru",mk("#2457C5")],["Biru strip",mk("#2457C5","#C8102E",1)],["Merah",mk("#C8102E")],["Merah strip 1",mk("#C8102E","#111111",1)],["Merah strip 2",mk("#C8102E","#111111",2)],["Hitam",mk("#111111")]],SK=["Poomsae","Kyorugi","Kekuatan","Kelenturan","Disiplin"],RP=500000;
-const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const ymd=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
-const rp=n=>"Rp"+n.toLocaleString("id-ID");
-const wan=x=>{x=String(x||"").replace(/\D/g,"");return x.startsWith("0")?"62"+x.slice(1):x};
 let ST="",RW=null,db=null,A=[],P=[],Lz=[],J=[],E=[],ed=null,cf=null,cfLulus=null,ad=ymd(),ym=ymd().slice(0,7);
-S.length=0;
 function sync(docs){S.length=0;docs.forEach(d=>{const s={...d,_n:d.n,_note:d.note||"Belum ada catatan."};s.bi=d.v==2?(d.bi||0):[0,1,3,5,7,10][d.bi||0];s.n=esc(d.n);s.note=esc(d.note||"Belum ada catatan.");s.b="Sabuk "+BL[s.bi][0].toLowerCase();s.c=BL[s.bi][1];s.nx=s.bi<10?BL[s.bi+1][0].toLowerCase():"dan";s.sk=s.sk||{};SK.forEach(k=>s.sk[k]=s.sk[k]??50);s.pct=s.pct||0;S.push(s)})
 S.sort((a,b)=>a._n.localeCompare(b._n,"id"));}
 const prog=s=>{const since=s.sejak||"0000-00-00";const ses=A.filter(x=>x.id>=since);const att=ses.length?ses.filter(x=>x.ids&&x.ids[s.id]).length/ses.length:0;const r=[];E.filter(x=>x.id>=since&&x.ev&&x.ev[s.id]).forEach(x=>["t","k","f"].forEach(k=>{if(Number.isFinite(x.ev[s.id][k]))r.push(x.ev[s.id][k])}));const sc=r.length?r.reduce((p,c)=>p+c,0)/r.length/5:0;return Math.round((sc*0.7+att*0.3)*100)};
@@ -236,7 +341,7 @@ const d0=draw;draw=function(){S.forEach(s=>{s.att=A.length?Math.round(A.filter(x
 const NV=[["dash","🥋 Dashboard"],["mur","👥 Murid"],["abs","✅ Absensi"],["pen","📝 Penilaian"],["iur","💳 Iuran"],["uji","🥇 Ujian sabuk"],["lap","📊 Laporan murid"],["jad","📅 Jadwal"],["kon","📸 Konten &amp; Instagram"],["dat","💾 Data"],["fit","🧭 Belum dibuat"]];
 document.querySelector("nav").innerHTML='<div class="brand">Dojang HQ<small>Supreme Taekwondo Terazza</small></div>'+NV.map(x=>`<button data-v="${x[0]}">${x[1]}</button>`).join("")+'<button id="logoutBtn" style="margin-top:auto;opacity:.75">🔒 Kunci / Keluar</button>';
 document.getElementById("logoutBtn").onclick=()=>{localStorage.removeItem("dojang_pin");__pin="";showPin(false)};
-FT.length=0;FT.push(["Belum dibuat di versi ini",[["Posting ke Instagram sungguhan","Butuh akun Instagram Professional dan aplikasi Meta (Graph API). Tab Konten masih contoh tampilan."],["Formulir pendaftaran publik","Halaman terpisah di landing page agar orang tua mendaftar sendiri. Sementara, catat calon murid di menu Murid."],["Portal orang tua","Orang tua melihat laporan dan tagihan anaknya sendiri."],["Pembayaran QRIS otomatis","Butuh penyedia pembayaran."],["Kejuaraan dan stok perlengkapan","Bisa ditambah setelah fitur inti dipakai rutin."]]]);
+FT.length=0;FT.push(["Belum dibuat di versi ini",[["Posting ke Instagram sungguhan","Butuh akun Instagram Professional dan aplikasi Meta (Graph API). Tab Konten masih contoh tampilan."],["Formulir pendaftaran publik","Halaman terpisah di landing page agar orang tua mendaftar sendiri. Sementara, catat calon murid di menu Murid."],["Pembayaran QRIS otomatis","Butuh penyedia pembayaran."],["Kejuaraan dan stok perlengkapan","Bisa ditambah setelah fitur inti dipakai rutin."]]]);
 const need=()=>`<div class="note" style="display:flex;justify-content:space-between;align-items:center"><span>${ST||"Siap digunakan"}</span></div>`;
 const emp=()=>`<div class="sec"><h2>Belum ada murid</h2><p class="mu">Tambahkan murid pertama, atau muat contoh data untuk mencoba.</p><button class="btn" data-a="add">Tambah murid</button> <button class="btn ghost" data-a="seed">Muat contoh data</button></div>`;
 V.dash=()=>{const n=S.length,as=[...A].sort((a,b)=>a.id<b.id?-1:1).slice(-8),w=as.map(x=>n?Math.round(Object.values(x.ids||{}).filter(Boolean).length/n*100):0),paid=Object.values(((P.find(x=>x.id==ym)||{}).ids)||{}).filter(Boolean).length,rd=S.filter(s=>(s.siap||s.pct>=70)&&s.bi<10),dd=BL.map((b,i)=>[b[0],S.filter(s=>s.bi==i).length,b[1]]).filter(x=>x[1]),nc=J[0];
@@ -265,6 +370,12 @@ if(a=="add"){ed={};cf=null;cur="mur";return draw()}
 if(a=="edit"){ed=S.find(s=>s.id==id);return draw()}
 if(a=="cancel"){ed=null;return draw()}
 if(a=="batalLulus"){cfLulus=null;return draw()}
+if(a=="copyPortal"){
+  const url=location.origin+"/?portal="+encodeURIComponent(id);
+  try{await navigator.clipboard.writeText(url);toast("Link Portal Orang Tua disalin!")}
+  catch(err){prompt("Salin link Portal Orang Tua di bawah ini:",url)}
+  return;
+}
 if(!db)return toast("Masukkan PIN terlebih dahulu");
 const C=n=>db.collection(n),v=i=>document.getElementById(i).value.trim();
 try{
@@ -313,6 +424,7 @@ const dlFile=async(name,text)=>{let dl=null;try{dl=window.claude?await claude.us
 V.dat=()=>need()+`<div class="top"><div><h1>Data &amp; cadangan</h1><span class="mu">Simpan cadangan data ke file, atau pulihkan dari file cadangan.</span></div></div><div class="sec"><h2>Ekspor</h2><p class="mu">Unduh semua data murid, absensi, iuran, penilaian, dan jadwal dalam satu file.</p><button class="btn" data-a="exp">Unduh cadangan (.json)</button></div><div class="sec"><h2>Impor</h2><p class="mu">Data dengan ID yang sama akan diganti. Data lain tetap ada.</p><input type="file" id="impf" accept="application/json,.json"></div>`;
 document.addEventListener("click",async e=>{const b=e.target.closest('[data-a="exp"]');if(!b)return;if(!db)return toast("Belum terhubung. Tunggu halaman siap.");try{const out={exported:new Date().toISOString(),data:{}};for(const c of DCOL){const q=await db.collection(c).get();out.data[c]=q.docs.map(d=>({id:d.id,...d.data()}))}await dlFile("dojang-backup-"+ymd()+".json",JSON.stringify(out,null,2));toast("Cadangan dibuat")}catch(x){toast("Gagal membuat cadangan")}});
 document.addEventListener("change",async e=>{if(e.target.id!="impf")return;const f=e.target.files[0];if(!f)return;if(!db)return toast("Belum terhubung");try{const j=JSON.parse(await f.text());const dt=j.data||{};let n=0;for(const c of DCOL){for(const r of (dt[c]||[])){const {id,...rest}=r;await db.collection(c).doc(id).set(rest);n++}}toast("Impor selesai: "+n+" data");draw()}catch(x){toast("File tidak valid")}e.target.value=""});
+}
 </script>
 <script>if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");</script>
 </body>
