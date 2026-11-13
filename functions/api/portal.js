@@ -14,7 +14,9 @@ export async function onRequestGet({env,request}){
     const d=JSON.parse(r.data);
     if(r.coll==="attendance")att.push({id:r.id,hadir:!!(d.ids&&d.ids[id])});
     else if(r.coll==="payments")pay.push({id:r.id,lunas:!!(d.ids&&d.ids[id])});
-    else if(r.coll==="evaluations"&&d.ev&&d.ev[id])ev.push({id:r.id,...d.ev[id]});
+    else if(r.coll==="evaluations"&&d.ev&&d.ev[id]){
+      ev.push({id:r.id,date:d.date||r.id.slice(0,10),coach:d.coach||"Pelatih",...d.ev[id]});
+    }
     else if(r.coll==="classes")cls.push({id:r.id,...d});
   }
   return J({
