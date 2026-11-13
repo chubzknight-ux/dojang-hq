@@ -6,7 +6,7 @@ export async function onRequestGet({env}){
   const students=[],evaluations=[],classes=[],coaches=[];
   for(const r of rs.results){
     const d=JSON.parse(r.data);
-    if(r.coll==="students")students.push({id:r.id,n:d.n,a:d.a,bi:d.bi,v:d.v});
+    if(r.coll==="students"&&!d.cuti)students.push({id:r.id,n:d.n,a:d.a,bi:d.bi,v:d.v});
     else if(r.coll==="evaluations")evaluations.push({id:r.id,...d});
     else if(r.coll==="classes")classes.push({id:r.id,...d});
     else if(r.coll==="coaches")coaches.push({id:r.id,...d});
