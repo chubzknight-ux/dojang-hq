@@ -113,6 +113,11 @@ nav{overflow-y:auto}
 .filter-top{display:flex;gap:10px;align-items:center;margin-bottom:10px}
 .filter-chips{display:flex;gap:6px;flex-wrap:wrap}
 .filter-chips .chip{padding:4px 10px;font-size:13px;box-shadow:none}
+.tbl-wrap{overflow-x:auto}
+table.att-tbl{width:100%;border-collapse:collapse;font-size:14px}
+table.att-tbl th,table.att-tbl td{padding:9px 8px;border-bottom:1px solid var(--ln);text-align:left;white-space:nowrap}
+table.att-tbl th{font-size:12px;color:var(--mu);text-transform:uppercase;letter-spacing:.04em}
+table.att-tbl td.c,table.att-tbl th.c{text-align:center}
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0E1430">
@@ -686,7 +691,7 @@ if(cur=="kon"){const c=$("#cap"),pv=$("#pv");c.oninput=()=>{$("#cnt").textConten
 $("#cig").onclick=()=>{ig=!ig;draw();toast(ig?"Instagram terhubung (contoh)":"Instagram diputuskan")};
 $("#pub").onclick=()=>{if(!c.value.trim())return toast("Tulis keterangan dulu");const t=[$("#p1").checked&&"Instagram",$("#p2").checked&&"Situs"].filter(Boolean);if(!t.length)return toast("Pilih tujuan unggahan");Q.unshift({t:c.value.slice(0,60),p:t.join(" + "),d:$("#dt").value?"Terjadwal":"Terbit"});draw();toast("Terbit")}}autoMark();applyAdminFilterDOM()}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-v],[data-sid],[data-lid]");if(!b)return;if(b.dataset.v)cur=b.dataset.v;if(b.dataset.sid)selId=b.dataset.sid;if(b.dataset.lid){selId=b.dataset.lid;cur="lap"}draw()});
-let ST="",RW=null,db=null,A=[],P=[],Lz=[],J=[],E=[],CList=[],ed=null,cf=null,cfLulus=null,ad=ymd(),ym=ymd().slice(0,7);
+let ST="",RW=null,db=null,A=[],P=[],Lz=[],J=[],E=[],CList=[],ed=null,cf=null,cfCls=null,cfCoach=null,cfReset=null,cfLulus=null,ad=ymd(),ym=ymd().slice(0,7);
 let coachName=localStorage.getItem("dojang_coach")||"Sabeum Shandy",evSaveStatus="",evTimer=null;
 let fSearch="",fBelt="all";
 
@@ -843,8 +848,19 @@ V.mur=()=>{
 
 V.abs=()=>{
   const uAll=unitS(),act=activeS(),r=A.find(x=>x.id==ad),ids=(r&&r.ids)||{},c=act.filter(s=>ids[s.id]).length,cutiN=uAll.length-act.length;
+  const mSes=[...A].filter(x=>x.id.startsWith(ym)).sort((a,b)=>a.id.localeCompare(b.id));
+  const totSes=mSes.length;
+  const avgAtt=act.length&&totSes?Math.round(act.reduce((sum,s)=>sum+(mSes.filter(x=>x.ids&&x.ids[s.id]).length/totSes*100),0)/act.length):0;
+  const repRows=act.map(s=>{
+    const h=mSes.filter(x=>x.ids&&x.ids[s.id]).length;
+    const abs=totSes-h;
+    const pct=totSes?Math.round(h/totSes*100):0;
+    const badge=totSes?(pct>=80?`<span class="pill ok">${pct}%</span>`:pct>=50?`<span class="pill">${pct}%</span>`:`<span class="pill warn">${pct}%</span>`):`<span class="mu">–</span>`;
+    return `<tr><td><span class="dot" style="background:${s.c}"></span><b>${s.n}</b>${curUnit==="all"?` <span class="pill">${esc(s.unit)}</span>`:`""`}</td><td class="c"><b>${h}</b></td><td class="c">${abs}</td><td class="c">${totSes}</td><td class="c">${badge}</td></tr>`;
+  }).join("");
+  const repSec=`<div class="sec"><div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:14px"><div><h2>📊 Laporan Absensi Bulanan (${ym})</h2><span class="mu">Total ${totSes} sesi tercatat · Rata-rata kehadiran ${avgAtt}%</span></div><div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div><label>Pilih Bulan</label><input id="ym" type="month" value="${ym}"></div><button class="btn ghost" data-a="copyAttRep">Salin Ringkasan WA</button></div></div>${totSes?`<div class="chips" style="margin-bottom:14px">${mSes.map(x=>{const cnt=act.filter(s=>x.ids&&x.ids[s.id]).length;return`<span class="pill">📅 ${x.id.slice(5)} (${cnt}/${act.length})</span>`}).join("")}</div>`:``}<div class="tbl-wrap"><table class="att-tbl"><thead><tr><th>Nama Murid</th><th class="c">Hadir</th><th class="c">Tidak Hadir</th><th class="c">Total Sesi</th><th class="c">Persentase</th></tr></thead><tbody>${repRows}</tbody></table></div></div>`;
   return need()+`<div class="top"><h1>Absensi</h1><div><label>Tanggal latihan</label><input id="ad" type="date" value="${ad}"></div></div>`+
-  (uAll.length?`<div class="sec"><h2>Hadir ${c} dari ${act.length} murid aktif · ${esc(unitLabel())}${cutiN?` <span class="mu" style="font-size:15px">(${cutiN} cuti disembunyikan)</span>`:``}</h2>${renderFilterBox(act.length)}${act.map(s=>`<label class="row" data-srow="1" data-name="${esc(s._n.toLowerCase())}" data-bi="${s.bi}"><span><span class="dot" style="background:${s.c}"></span>${s.n} ${curUnit==="all"?`<span class="pill">${esc(s.unit)}</span>`:`""`} <span class="mu">${s.b} · ${s.att}% total</span></span><input type="checkbox" data-ab="${s.id}" ${ids[s.id]?"checked":""} style="width:22px;height:22px"></label>`).join("")}</div>`:emp());
+  (uAll.length?`<div class="sec"><h2>Hadir ${c} dari ${act.length} murid aktif · ${esc(unitLabel())}${cutiN?` <span class="mu" style="font-size:15px">(${cutiN} cuti disembunyikan)</span>`:``}</h2>${renderFilterBox(act.length)}${act.map(s=>`<label class="row" data-srow="1" data-name="${esc(s._n.toLowerCase())}" data-bi="${s.bi}"><span><span class="dot" style="background:${s.c}"></span>${s.n} ${curUnit==="all"?`<span class="pill">${esc(s.unit)}</span>`:`""`} <span class="mu">${s.b} · ${s.att}% total</span></span><input type="checkbox" data-ab="${s.id}" ${ids[s.id]?"checked":""} style="width:22px;height:22px"></label>`).join("")}</div>`+repSec:emp());
 };
 
 V.pen=()=>{
@@ -926,7 +942,7 @@ return need()+`<div class="top"><h1>Jadwal &amp; Unit Dojang</h1></div>
 <div class="sec"><h2>Kelola Unit Dojang &amp; Tarif Standar</h2><p class="mu">Atur tarif standar iuran bulanan per unit dojang (bisa juga ditimpa per anak di menu Murid).</p>
 <div class="f" style="max-width:620px;margin-bottom:16px"><div><label>Nama Unit Dojang Baru</label><input id="newUnitInp" type="text" placeholder="Misal: Gading Serpong"></div><div><label>Tarif Iuran Bulanan (Rp)</label><input id="newUnitFee" type="number" min="0" step="10000" value="500000"></div><div style="display:flex;align-items:flex-end"><button class="btn" data-a="addUnit">Tambah Unit</button></div></div>
 ${units.map(u=>`<div class="row" style="flex-wrap:wrap"><span><b>🥋 ${esc(u)}</b> <span class="mu">(${S.filter(s=>s.unit===u).length} murid)</span></span><span style="display:flex;gap:8px;align-items:center"><span class="mu" style="font-size:13px">Rp</span><input id="ufee_${slug(u)}" type="number" min="0" step="10000" value="${unitFee(u)}" style="width:140px;padding:7px 9px"><button class="btn ghost" data-a="saveUnitFee" data-unit="${esc(u)}">Simpan Tarif</button></span></div>`).join("")}</div>
-<div class="sec"><h2>Tambah kelas (${esc(unitLabel())})</h2><datalist id="unitList">${units.map(u=>`<option value="${esc(u)}">`).join("")}</datalist><div class="f"><div><label>Unit Dojang</label><input id="ju" type="text" list="unitList" value="${esc(defU)}"></div><div><label>Hari</label><input id="jh" type="text" placeholder="Selasa"></div><div><label>Jam</label><input id="jj" type="text" placeholder="18.00 – 20.00"></div><div><label>Lokasi</label><input id="jl" type="text" placeholder="Terazza 301 / PIK 2"></div><div><label>Pelatih</label><input id="jp" type="text" placeholder="Sabeum Shandy"></div></div><p><button class="btn" data-a="cls">Simpan kelas</button></p>${uClasses.map(c=>`<div class="row"><span><b>${esc(c.h)}, ${esc(c.j)}</b> <span class="pill">${esc(c.unit||"Terazza")}</span><br><span class="mu">${esc(c.l)} · ${esc(c.p)}</span></span><button class="btn ghost dn" data-a="dc" data-id="${c.id}">Hapus</button></div>`).join("")}</div>`};
+<div class="sec"><h2>Tambah &amp; Kelola Jadwal Kelas (${esc(unitLabel())})</h2><datalist id="unitList">${units.map(u=>`<option value="${esc(u)}">`).join("")}</datalist><div class="f"><div><label>Unit Dojang</label><input id="ju" type="text" list="unitList" value="${esc(defU)}"></div><div><label>Hari</label><input id="jh" type="text" placeholder="Selasa"></div><div><label>Jam</label><input id="jj" type="text" placeholder="18.00 – 20.00"></div><div><label>Lokasi</label><input id="jl" type="text" placeholder="Terazza 301 / PIK 2"></div><div><label>Pelatih</label><input id="jp" type="text" placeholder="Sabeum Shandy"></div></div><p><button class="btn" data-a="cls">Simpan kelas</button></p>${uClasses.length?uClasses.map(c=>`<div class="row"><span><b>${esc(c.h)}, ${esc(c.j)}</b> <span class="pill">${esc(c.unit||"Terazza")}</span><br><span class="mu">${esc(c.l)} · ${esc(c.p)}</span></span><span style="display:flex;gap:8px"><button class="btn ghost dn" data-a="dc" data-id="${c.id}">${cfCls==c.id?"Yakin hapus jadwal?":"Hapus Jadwal"}</button>${cfCls==c.id?`<button class="btn ghost" data-a="batalDc">Batal</button>`:`""`}</span></div>`).join(""):`<p class="mu">Belum ada jadwal kelas di ${esc(unitLabel())}.</p>`}</div>`};
 
 document.addEventListener("click",async e=>{
 const fb=e.target.closest("[data-fbelt]");
@@ -937,6 +953,9 @@ if(a=="add"){ed={};cf=null;cur="mur";return draw()}
 if(a=="edit"){ed=S.find(s=>s.id==id);return draw()}
 if(a=="cancel"){ed=null;return draw()}
 if(a=="batalLulus"){cfLulus=null;return draw()}
+if(a=="batalDc"){cfCls=null;return draw()}
+if(a=="batalDelCoach"){cfCoach=null;return draw()}
+if(a=="batalReset"){cfReset=null;return draw()}
 if(a=="pickCoach"){
   coachName=b.dataset.coach||"Sabeum Shandy";
   rememberCoach(coachName);
@@ -962,6 +981,15 @@ if(a=="copyCoachPortal"){
   const url=location.origin+"/?pelatih=1";
   try{await navigator.clipboard.writeText(url);toast("Link Portal Pelatih disalin!")}
   catch(err){prompt("Salin link Portal Pelatih di bawah ini:",url)}
+  return;
+}
+if(a=="copyAttRep"){
+  const act=activeS(),mSes=[...A].filter(x=>x.id.startsWith(ym)).sort((a,b)=>a.id.localeCompare(b.id));
+  const tot=mSes.length;
+  const lines=act.map(s=>{const h=mSes.filter(x=>x.ids&&x.ids[s.id]).length;const pct=tot?Math.round(h/tot*100):0;return`• ${s._n}: ${h}/${tot} sesi (${pct}%)`});
+  const txt=`📊 Laporan Absensi Supreme Taekwondo (${unitLabel()})\nBulan: ${ym} (Total ${tot} sesi)\n\n`+(lines.join("\n")||"Belum ada murid aktif.");
+  try{await navigator.clipboard.writeText(txt);toast("Ringkasan absensi disalin!")}
+  catch(err){prompt("Salin ringkasan absensi:",txt)}
   return;
 }
 if(a=="ghRun"){
@@ -1032,7 +1060,29 @@ else if(a=="lulus"){
 }
 else if(a=="cls"){if(!v("jh"))return toast("Isi hari kelas");const uName=ensureUnit(v("ju")||"Terazza");await C("classes").add({unit:uName,h:v("jh"),j:v("jj"),l:v("jl"),p:v("jp")});toast("Kelas tersimpan")}
 else if(a=="evsave"){await saveCurrentEval(false);return;}
-else if(a=="dc")await C("classes").doc(id).delete();
+else if(a=="dc"){if(cfCls!=id){cfCls=id;return draw();}await C("classes").doc(id).delete();cfCls=null;toast("Jadwal kelas dihapus")}
+else if(a=="delCoach"){
+  const cName=b.dataset.coach||"";
+  if(cfCoach!==cName){cfCoach=cName;return draw();}
+  const cSlug=slug(cName);
+  await C("coaches").doc(cSlug).delete();
+  try{const arr=JSON.parse(localStorage.getItem("dojang_coaches")||"[]").filter(x=>slug(x)!==cSlug);localStorage.setItem("dojang_coaches",JSON.stringify(arr));}catch(err){}
+  cfCoach=null;
+  toast("Data pelatih dihapus");
+}
+else if(a=="resetCol"){
+  const target=b.dataset.col;
+  if(cfReset!==target){cfReset=target;return draw();}
+  if(target==="students"){
+    for(const s of S)await C("students").doc(s.id).delete();
+    toast("Semua data murid dihapus");
+  }else if(target==="coaches"){
+    for(const c of CList)await C("coaches").doc(c.id).delete();
+    localStorage.removeItem("dojang_coaches");
+    toast("Semua data pelatih dihapus");
+  }
+  cfReset=null;
+}
 }catch(x){toast("Gagal menyimpan")}draw()});
 
 document.addEventListener("input",e=>{
@@ -1070,7 +1120,9 @@ draw();
 
 const DCOL=["students","attendance","payments","leads","classes","evaluations","coaches","units"];
 const dlFile=async(name,text)=>{let dl=null;try{dl=window.claude?await claude.use("downloads"):null}catch(e){}if(dl){try{await dl.save({filename:name,data:text});return}catch(e){}}const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();a.remove()};
-V.dat=()=>need()+`<div class="top"><div><h1>Data &amp; cadangan</h1><span class="mu">Simpan cadangan data ke file, atau pulihkan dari file cadangan.</span></div></div><div class="sec"><h2>Ekspor</h2><p class="mu">Unduh semua data murid, absensi, iuran, penilaian, dan jadwal dalam satu file.</p><button class="btn" data-a="exp">Unduh cadangan (.json)</button></div><div class="sec"><h2>Impor</h2><p class="mu">Data dengan ID yang sama akan diganti. Data lain tetap ada.</p><input type="file" id="impf" accept="application/json,.json"></div><div class="sec"><h2>🚀 Update Aplikasi Otomatis (GitHub)</h2><p class="mu">Simpan GitHub Token sekali saja. Ke depannya cukup tempel paket update dan klik tombol di bawah tanpa buka GitHub manual.</p><label>GitHub Personal Access Token</label><input id="ghTok" type="password" placeholder="github_pat_..." value="${esc(localStorage.getItem("dojang_gh_tok")||"")}" style="margin-bottom:10px"><label>Paket Update (JSON dari Asisten)</label><textarea id="ghPkg" rows="4" placeholder='Tempel kode paket update di sini...'></textarea><div id="ghRes" style="margin-top:10px"></div><p style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button class="btn" data-a="ghRun" data-mode="pr">Buat Pull Request di GitHub</button><button class="btn ghost" data-a="ghRun" data-mode="direct">Update Langsung ke Main</button></p></div>`;
+V.dat=()=>{const coachRows=CList.map(c=>`<div class="row"><span><b>🥋 ${esc(c.name||c.id)}</b></span><span style="display:flex;gap:8px"><button class="btn ghost dn" data-a="delCoach" data-coach="${esc(c.name||c.id)}">${cfCoach===(c.name||c.id)?"Yakin hapus pelatih?":"Hapus Pelatih"}</button>${cfCoach===(c.name||c.id)?`<button class="btn ghost" data-a="batalDelCoach">Batal</button>`:`""`}</span></div>`).join("");
+const stuRows=S.map(s=>`<div class="row"><span><span class="dot" style="background:${s.c}"></span><b>${s.n}</b> <span class="pill">${esc(s.unit)}</span> <span class="mu">${s.b}</span></span><span style="display:flex;gap:8px"><button class="btn ghost dn" data-a="del" data-id="${s.id}">${cf==s.id?"Yakin hapus murid?":"Hapus Murid"}</button>${cf==s.id?`<button class="btn ghost" data-a="cancel">Batal</button>`:`""`}</span></div>`).join("");
+return need()+`<div class="top"><div><h1>Data &amp; cadangan</h1><span class="mu">Simpan cadangan data ke file, pulihkan cadangan, atau kelola penghapusan data murid &amp; pelatih.</span></div></div><div class="sec"><h2>Ekspor</h2><p class="mu">Unduh semua data murid, absensi, iuran, penilaian, dan jadwal dalam satu file.</p><button class="btn" data-a="exp">Unduh cadangan (.json)</button></div><div class="sec"><h2>Impor</h2><p class="mu">Data dengan ID yang sama akan diganti. Data lain tetap ada.</p><input type="file" id="impf" accept="application/json,.json"></div><div class="sec"><h2>🗑️ Hapus Data Pelatih (${CList.length} terdaftar)</h2><p class="mu">Hapus nama pelatih yang sudah tidak aktif dari daftar cepat dan Portal Pelatih.</p>${coachRows||`<p class="mu">Belum ada data pelatih tambahan di database.</p>`}${CList.length?`<p style="margin-top:14px"><button class="btn ghost dn" data-a="resetCol" data-col="coaches">${cfReset==="coaches"?"⚠️ KLIK LAGI: Hapus SEMUA Pelatih":"Hapus Semua Data Pelatih"}</button>${cfReset==="coaches"?` <button class="btn ghost" data-a="batalReset">Batal</button>`:`""`}</p>`:`""`}</div><div class="sec"><h2>🗑️ Hapus Data Murid (${S.length} total)</h2><p class="mu">Hapus data murid satu per satu atau bersihkan seluruh data murid sekaligus.</p>${stuRows||`<p class="mu">Belum ada data murid.</p>`}${S.length?`<p style="margin-top:14px"><button class="btn ghost dn" data-a="resetCol" data-col="students">${cfReset==="students"?"⚠️ KLIK LAGI: Hapus SEMUA Murid":"Hapus Semua Data Murid"}</button>${cfReset==="students"?` <button class="btn ghost" data-a="batalReset">Batal</button>`:`""`}</p>`:`""`}</div><div class="sec"><h2>🚀 Update Aplikasi Otomatis (GitHub)</h2><p class="mu">Simpan GitHub Token sekali saja. Ke depannya cukup tempel paket update dan klik tombol di bawah tanpa buka GitHub manual.</p><label>GitHub Personal Access Token</label><input id="ghTok" type="password" placeholder="github_pat_..." value="${esc(localStorage.getItem("dojang_gh_tok")||"")}" style="margin-bottom:10px"><label>Paket Update (JSON dari Asisten)</label><textarea id="ghPkg" rows="4" placeholder='Tempel kode paket update di sini...'></textarea><div id="ghRes" style="margin-top:10px"></div><p style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"><button class="btn" data-a="ghRun" data-mode="pr">Buat Pull Request di GitHub</button><button class="btn ghost" data-a="ghRun" data-mode="direct">Update Langsung ke Main</button></p></div>`};
 document.addEventListener("click",async e=>{const b=e.target.closest('[data-a="exp"]');if(!b)return;if(!db)return toast("Belum terhubung. Tunggu halaman siap.");try{const out={exported:new Date().toISOString(),data:{}};for(const c of DCOL){const q=await db.collection(c).get();out.data[c]=q.docs.map(d=>({id:d.id,...d.data()}))}await dlFile("dojang-backup-"+ymd()+".json",JSON.stringify(out,null,2));toast("Cadangan dibuat")}catch(x){toast("Gagal membuat cadangan")}});
 document.addEventListener("change",async e=>{if(e.target.id!="impf")return;const f=e.target.files[0];if(!f)return;if(!db)return toast("Belum terhubung");try{const j=JSON.parse(await f.text());const dt=j.data||{};let n=0;for(const c of DCOL){for(const r of (dt[c]||[])){const {id,...rest}=r;await db.collection(c).doc(id).set(rest);n++}}toast("Impor selesai: "+n+" data");draw()}catch(x){toast("File tidak valid")}e.target.value=""});
 }
