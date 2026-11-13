@@ -329,7 +329,7 @@ if(portalId){
     const existing=getCoachEval(cDate,activeCoach);
     const docId=existing?existing.id:(cDate+"__"+slug(activeCoach));
     const ev={...((existing&&existing.ev)||{})};
-    cData.students.forEach(st=>{
+    cData.students.filter(st=>!st.cuti).forEach(st=>{
       const r={};
       document.querySelectorAll('[data-cev="'+st.id+'"]') .forEach(el=>{if(el.value)r[el.dataset.k]=+el.value});
       const note=((document.querySelector('[data-cen="'+st.id+'"]')||{}).value||"").trim();
@@ -368,9 +368,10 @@ if(portalId){
   }
 
   function applyCoachFilterDOM(){
+    const rows=document.querySelectorAll("[data-crow]");
     const q=cSearch.trim().toLowerCase();
     let vis=0;
-    document.querySelectorAll("[data-crow]").forEach(row=>{
+    rows.forEach(row=>{
       const name=row.dataset.name||"";
       const bi=+row.dataset.bi||0;
       const u=row.dataset.unit||"Terazza";
@@ -379,7 +380,7 @@ if(portalId){
       if(ok)vis++;
     });
     const cnt=document.getElementById("cFilterCnt");
-    if(cnt)cnt.textContent=`Menampilkan ${vis} dari ${cData.students.length} murid`;
+    if(cnt)cnt.textContent=`Menampilkan ${vis} dari ${rows.length} murid aktif`;
     document.querySelectorAll("[data-cbelt]").forEach(btn=>btn.setAttribute("aria-pressed",btn.dataset.cbelt===cBelt));
     document.querySelectorAll("[data-cunit]").forEach(btn=>btn.setAttribute("aria-pressed",btn.dataset.cunit===cUnit));
   }
@@ -419,7 +420,7 @@ if(portalId){
 
     const existing=getCoachEval(cDate,activeCoach);
     const ev=(existing&&existing.ev)||{};
-    const sortedStudents=[...cData.students].sort((a,b)=>String(a.n||"").localeCompare(String(b.n||""),"id"));
+    const sortedStudents=cData.students.filter(s=>!s.cuti).sort((a,b)=>String(a.n||"").localeCompare(String(b.n||""),"id"));
     const units=allCoachUnits();
     const myLogs=cData.evaluations
       .filter(x=>slug(x.coach||"")===slug(activeCoach))
@@ -437,7 +438,7 @@ if(portalId){
       <div class="filter-chips">
         ${BELT_CATS.map(([k,lbl,col])=>`<button class="chip" data-cbelt="${k}" aria-pressed="${cBelt===k}">${k!=="all"?`<span class="dot" style="background:${col};margin-right:2px"></span>`:`""`}${lbl}</button>`).join("")}
       </div>
-      <div id="cFilterCnt" class="mu" style="font-size:12px;margin-top:8px">Menampilkan ${sortedStudents.length} dari ${sortedStudents.length} murid</div>
+      <div id="cFilterCnt" class="mu" style="font-size:12px;margin-top:8px">Menampilkan ${sortedStudents.length} dari ${sortedStudents.length} murid aktif</div>
     </div>`;
 
     $("#app").innerHTML=`
@@ -476,8 +477,7 @@ if(portalId){
             <span class="ev">${[["t","Teknik"],["k","Sikap"],["f","Fisik"]].map(([k,l])=>`<label>${l}<select data-cev="${st.id}" data-k="${k}"><option value="">–</option>${[1,2,3,4,5].map(n=>`<option ${x[k]==n?"selected":""}>${n}</option>`).join("")}</select></label>`).join("")}</span>
             <input data-cen="${st.id}" type="text" placeholder="Catatan singkat dari ${esc(activeCoach)}" value="${esc(x.n||"")}" style="flex:1 1 100%;margin-top:6px">
           </div>`;
-        }).join(""):`<p class="mu">Belum ada data murid aktif.</p>`}
-        <p style="margin-top:16px"><button class="btn" data-ca="saveNow">Simpan Sekarang</button></p>
+        }).join("")+`<p style="margin-top:16px"><button class="btn" data-ca="saveNow">Simpan Sekarang</button></p>`:`<p class="mu">Belum ada data murid aktif.</p>`}
       </div>
 
       <div class="sec">
@@ -867,9 +867,7 @@ V.pen=()=>{
       <h2>Lembar Nilai: ${esc(coachName)} (${ad})</h2>
       <span id="evSt" class="pill">${esc(evSaveStatus||(existing?"Tersimpan":"Siap diisi (auto-save)"))}</span>
     </div>
-    ${renderFilterBox(act.length)}
-    ${rowsHtml}
-    <p style="margin-top:14px"><button class="btn" data-a="evsave">Simpan Sekarang</button></p>
+    ${act.length?renderFilterBox(act.length)+rowsHtml+`<p style="margin-top:14px"><button class="btn" data-a="evsave">Simpan Sekarang</button></p>`:`<p class="mu">Semua murid di unit ini sedang cuti (tidak tampil di penilaian).</p>`}
   </div>
   <div class="sec">
     <h2>📜 Log Riwayat Penilaian Semua Pelatih (${allLogs.length} sesi)</h2>
