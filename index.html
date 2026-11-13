@@ -629,7 +629,7 @@ const FT=[];
 let cur="dash",selId="",ig=false,Q=[{t:"Latihan Selasa: dasar tendangan dollyo chagi",p:"Instagram + Situs",d:"Terbit"}];
 const V={
 dash(){return""},
-lap(){const list=unitS();const s=list.find(x=>x.id===selId)||list[0];selId=s.id;
+lap(){const list=unitS();const s=list.find(x=>x.id===selId)||list[0];if(!s)return`<div class="top"><h1>Laporan performa murid</h1><span class="pill">${esc(unitLabel())}</span></div><div class="sec"><p class="mu">Belum ada murid di unit ini.</p></div>`;selId=s.id;
 const mAtt=A.filter(x=>x.id.startsWith(ym));
 const mHadir=mAtt.filter(x=>x.ids&&x.ids[s.id]).length;
 const mEv=E.filter(x=>(x.date||x.id).startsWith(ym)&&x.ev&&x.ev[s.id]);
@@ -641,7 +641,10 @@ const wa="Halo Orang Tua/Wali dari "+s._n+", berikut ringkasan perkembangan di S
 "• Rata-rata nilai bulan ini: Teknik "+mAvg("t")+", Sikap "+mAvg("k")+", Fisik "+mAvg("f")+"\n"+
 "• Catatan Sabeum: "+s._note+"\n\n"+
 "Pantau laporan lengkap, jadwal & status iuran anak secara langsung di Portal Orang Tua:\n"+portalUrl;
-return`<div class="top"><h1>Laporan performa murid</h1><span class="pill">${esc(unitLabel())}</span></div><div class="chips" role="group" aria-label="Pilih murid">${list.map(x=>`<button class="chip" aria-pressed="${x.id===s.id}" data-sid="${x.id}"><span class="av" style="background:${x.c}">${x.n[0]}</span>${x.n}${curUnit==="all"?` <small style="opacity:.75">(${esc(x.unit)})</small>`:`""`}${x.cuti?" (Cuti)":""}</button>`).join("")}</div>
+return`<div class="top"><h1>Laporan performa murid</h1><span class="pill">${esc(unitLabel())}</span></div>
+<div style="margin-bottom:16px"><label>Pilih Murid (Aktif &amp; Cuti)</label><select id="lapSelMurid" aria-label="Pilih Murid">
+${list.map(x=>`<option value="${x.id}" ${x.id===s.id?"selected":""}>${esc(x.n)} (${esc(x.unit)}) ${x.cuti?"[Cuti]":""}</option>`).join("")}
+</select></div>
 <div class="grid"><div class="sec"><h2>${s.n} <span class="pill">${esc(s.unit)}</span> ${s.cuti?'<span class="pill leave">Sedang Cuti</span>':''}</h2><p class="mu" style="margin:0 0 14px">${s.a} tahun · <span class="dot" style="background:${s.c}"></span>${s.b} · Iuran ${rp(studentFee(s))}/bln${hasCustomFee(s)?" (tarif khusus)":""}${s.cuti&&s.cutiKet?" · "+esc(s.cutiKet):""}</p>
 <b>Progres menuju sabuk ${s.nx}: ${s.pct}%</b><div class="meter"><i style="width:${s.pct}%"></i></div>
 <b>Kehadiran total: ${s.att}%</b><div class="meter"><i style="width:${s.att}%"></i></div>
@@ -706,7 +709,7 @@ function renderFilterBox(total){
     <div class="filter-chips">
       ${BELT_CATS.map(([k,lbl,col])=>`<button class="chip" data-fbelt="${k}" aria-pressed="${fBelt===k}">${k!=="all"?`<span class="dot" style="background:${col};margin-right:2px"></span>`:`""`}${lbl}</button>`).join("")}
     </div>
-    <div id="fFilterCnt" class="mu" style="font-size:12px;margin-top:8px">Menampilkan ${tot} dari ${tot} murid</div>
+    <div id="fFilterCnt" class="mu" style="font-size:12px;margin-top:8px">Menampilkan ${tot} dari ${tot} murid aktif</div>
   </div>`;
 }
 
@@ -723,7 +726,7 @@ function applyAdminFilterDOM(){
     if(ok)vis++;
   });
   const cnt=document.getElementById("fFilterCnt");
-  if(cnt)cnt.textContent=`Menampilkan ${vis} dari ${rows.length} murid`;
+  if(cnt)cnt.textContent=`Menampilkan ${vis} dari ${rows.length} murid aktif`;
   document.querySelectorAll("[data-fbelt]").forEach(btn=>btn.setAttribute("aria-pressed",btn.dataset.fbelt===fBelt));
 }
 
@@ -798,16 +801,43 @@ return need()+hero+`<div class="kpis"><div class="kpi"><strong>${n}</strong>Muri
 <div class="grid"><div class="sec"><h2>Kehadiran latihan terakhir</h2>${w.length?`<div class="bars" style="padding-top:20px">${w.map(v=>`<div style="height:${Math.max(v,3)}%"><span>${v}</span></div>`).join("")}</div><div class="xl">${as.map(x=>`<span>${x.id.slice(5)}</span>`).join("")}</div>`:`<p class="mu">Belum ada absensi. Catat di menu Absensi.</p>`}</div>
 <div class="sec"><h2>Siap diuji naik sabuk</h2>${rd.length?rd.map(s=>`<div class="row"><span><span class="dot" style="background:${s.c}"></span>${s.n} ${curUnit==="all"?`<span class="pill">${esc(s.unit)}</span>`:`""`}<br><span class="mu">${s.b} → ${s.nx}</span></span><button class="btn ghost" data-lid="${s.id}">Lihat laporan</button></div>`).join(""):`<p class="mu">Belum ada.</p>`}</div></div>`};
 
-V.mur=()=>{const f=ed,uAll=unitS(),actCnt=activeS().length,cutiCnt=uAll.length-actCnt,units=getUnits(),defU=f?(f.unit||(curUnit==="all"?"Terazza":curUnit)):(curUnit==="all"?"Terazza":curUnit),defFeeVal=(f&&hasCustomFee(f))?Number(f.fee):"";
-const unitDL=`<datalist id="unitList">${units.map(u=>`<option value="${esc(u)}">`).join("")}</datalist>`;
-const form=f?`<div class="sec"><h2>${f.id?"Ubah data murid":"Murid baru"}</h2>${unitDL}<div class="f"><div><label>Nama</label><input id="fn" type="text" value="${esc(f._n||"")}"></div><div><label>Unit Dojang (pilih atau ketik baru)</label><input id="fu" type="text" list="unitList" placeholder="Terazza / Chevalier PIK 2" value="${esc(defU)}"></div><div><label>Usia</label><input id="fa" type="number" min="6" value="${f.a||""}"></div><div><label>Sabuk</label><select id="fb">${BL.map((b,i)=>`<option value="${i}" ${(f.bi||0)==i?"selected":""}>${b[0]}</option>`).join("")}</select></div><div><label>WhatsApp orang tua</label><input id="fw" type="tel" value="${esc(f.wa||"")}"></div><div><label>Tarif Iuran Khusus (Rp - opsional)</label><input id="ffee" type="number" min="0" step="10000" placeholder="Kosong = ikut unit (${rp(unitFee(defU))})" value="${defFeeVal}"></div></div><h3 style="margin:16px 0 6px">Nilai keterampilan (0–100)</h3><div class="f">${SK.map(k=>`<div><label>${k}</label><input data-sk="${k}" type="number" min="0" max="100" value="${(f.sk||{})[k]??50}"></div>`).join("")}</div><div style="margin-top:14px"><label>Catatan pelatih</label><textarea id="fo" rows="3">${esc(f._note=="Belum ada catatan."?"":(f._note||""))}</textarea></div><label class="tg" style="margin-top:10px"><input type="checkbox" id="fc" ${f.cuti?"checked":""}> <b>Sedang Cuti</b> (nonaktif sementara — dikecualikan dari absensi, penilaian, dan iuran bulanan)</label><div style="margin:6px 0 10px"><label>Alasan / Periode Cuti (opsional)</label><input id="fck" type="text" placeholder="Contoh: Fokus ujian sekolah s/d Desember" value="${esc(f.cutiKet||"")}"></div><label class="tg"><input type="checkbox" id="ff" ${f.foto?"checked":""}> Orang tua mengizinkan foto dan video murid dipublikasikan (UU PDP)${f.fotoTgl?` · <span class="pill">Disetujui: ${esc(f.fotoTgl)}</span>`:`""`}</label><p><button class="btn" data-a="save">Simpan</button> <button class="btn ghost" data-a="cancel">Batal</button></p></div>`:"";
-const list=uAll.map(s=>`<div class="row" data-srow="1" data-name="${esc(s._n.toLowerCase())}" data-bi="${s.bi}"><span><span class="dot" style="background:${s.c}"></span><b>${s.n}</b> <span class="pill">${esc(s.unit)}</span> ${hasCustomFee(s)?`<span class="pill">${rp(s.fee)}/bln</span>`:`""`} ${s.cuti?'<span class="pill leave">Cuti</span>':''} <span class="mu">${s.a||"?"} th · ${s.b}${s.cuti&&s.cutiKet?" · "+esc(s.cutiKet):""}${s.foto?(s.fotoTgl?" · izin foto ("+esc(s.fotoTgl)+")":" · izin foto"):" · foto belum diizinkan"}</span></span><span><button class="btn ghost" data-a="edit" data-id="${s.id}">Ubah</button> <button class="btn ghost dn" data-a="del" data-id="${s.id}">${cf==s.id?"Yakin hapus?":"Hapus"}</button></span></div>`).join("");
-const uLeads=curUnit==="all"?Lz:Lz.filter(l=>(l.unit||"Terazza")===curUnit);
-const ld=`<div class="sec"><h2>Calon murid (${esc(unitLabel())})</h2>${unitDL}<div class="f"><div><label>Nama</label><input id="ln" type="text"></div><div><label>Unit Dojang</label><input id="lu" type="text" list="unitList" value="${esc(curUnit==="all"?"Terazza":curUnit)}"></div><div><label>Usia</label><input id="la" type="number"></div><div><label>WhatsApp</label><input id="lw" type="tel"></div></div><p><button class="btn" data-a="lead">Catat calon murid</button></p>${uLeads.map(l=>`<div class="row"><span>${esc(l.n)} <span class="pill">${esc(l.unit||"Terazza")}</span> <span class="mu">${esc(l.a||"")} th · ${esc(l.wa||"")}</span></span><span><button class="btn ghost" data-a="conv" data-id="${l.id}">Jadikan murid</button> <button class="btn ghost dn" data-a="dl" data-id="${l.id}">Hapus</button></span></div>`).join("")}</div>`;
-return need()+`<div class="top"><h1>Murid</h1><button class="btn" data-a="add">Tambah murid</button></div>`+form+(uAll.length?`<div class="sec"><h2>${actCnt} murid aktif${cutiCnt?` · ${cutiCnt} cuti`:``} (${esc(unitLabel())})</h2>${renderFilterBox(uAll.length)}${list}</div>`:f?"":emp())+ld};
+V.mur=()=>{
+  const f=ed,uAll=unitS(),act=activeS(),cuti=uAll.filter(s=>s.cuti);
+  const actCnt=act.length,cutiCnt=cuti.length,units=getUnits();
+  const defU=f?(f.unit||(curUnit==="all"?"Terazza":curUnit)):(curUnit==="all"?"Terazza":curUnit);
+  const defFeeVal=(f&&hasCustomFee(f))?Number(f.fee):"";
+  const unitDL=`<datalist id="unitList">${units.map(u=>`<option value="${esc(u)}">`).join("")}</datalist>`;
+  
+  const form=f?`<div class="sec"><h2>${f.id?"Ubah data murid":"Murid baru"}</h2>${unitDL}<div class="f"><div><label>Nama</label><input id="fn" type="text" value="${esc(f._n||"")}"></div><div><label>Unit Dojang (pilih atau ketik baru)</label><input id="fu" type="text" list="unitList" placeholder="Terazza / Chevalier PIK 2" value="${esc(defU)}"></div><div><label>Usia</label><input id="fa" type="number" min="6" value="${f.a||""}"></div><div><label>Sabuk</label><select id="fb">${BL.map((b,i)=>`<option value="${i}" ${(f.bi||0)==i?"selected":""}>${b[0]}</option>`).join("")}</select></div><div><label>WhatsApp orang tua</label><input id="fw" type="tel" value="${esc(f.wa||"")}"></div><div><label>Tarif Iuran Khusus (Rp - opsional)</label><input id="ffee" type="number" min="0" step="10000" placeholder="Kosong = ikut unit (${rp(unitFee(defU))})" value="${defFeeVal}"></div></div><h3 style="margin:16px 0 6px">Nilai keterampilan (0–100)</h3><div class="f">${SK.map(k=>`<div><label>${k}</label><input data-sk="${k}" type="number" min="0" max="100" value="${(f.sk||{})[k]??50}"></div>`).join("")}</div><div style="margin-top:14px"><label>Catatan pelatih</label><textarea id="fo" rows="3">${esc(f._note=="Belum ada catatan."?"":(f._note||""))}</textarea></div><label class="tg" style="margin-top:10px"><input type="checkbox" id="fc" ${f.cuti?"checked":""}> <b>Sedang Cuti</b> (nonaktif sementara — dikecualikan dari absensi, penilaian, dan iuran bulanan)</label><div style="margin:6px 0 10px"><label>Alasan / Periode Cuti (opsional)</label><input id="fck" type="text" placeholder="Contoh: Fokus ujian sekolah s/d Desember" value="${esc(f.cutiKet||"")}"></div><label class="tg"><input type="checkbox" id="ff" ${f.foto?"checked":""}> Orang tua mengizinkan foto dan video murid dipublikasikan (UU PDP)${f.fotoTgl?` · <span class="pill">Disetujui: ${esc(f.fotoTgl)}</span>`:`""`}</label><p><button class="btn" data-a="save">Simpan</button> <button class="btn ghost" data-a="cancel">Batal</button></p></div>`:"";
+  
+  const activeListHtml=act.map(s=>`<div class="row" data-srow="1" data-name="${esc(s._n.toLowerCase())}" data-bi="${s.bi}"><span><span class="dot" style="background:${s.c}"></span><b>${s.n}</b> <span class="pill">${esc(s.unit)}</span> ${hasCustomFee(s)?`<span class="pill">${rp(s.fee)}/bln</span>`:`""`} <span class="mu">${s.a||"?"} th · ${s.b}${s.foto?(s.fotoTgl?" · izin foto ("+esc(s.fotoTgl)+")":" · izin foto"):" · foto belum diizinkan"}</span></span><span><button class="btn ghost" data-a="edit" data-id="${s.id}">Ubah</button> <button class="btn ghost dn" data-a="del" data-id="${s.id}">${cf==s.id?"Yakin hapus?":"Hapus"}</button></span></div>`).join("");
+  
+  const cutiListHtml=cuti.map(s=>`<div class="row" data-srow="2" data-name="${esc(s._n.toLowerCase())}"><span><span class="dot" style="background:${s.c}"></span><b>${s.n}</b> <span class="pill">${esc(s.unit)}</span> <span class="pill leave">Cuti</span> <span class="mu">${s.a||"?"} th · ${s.b}${s.cutiKet?" · "+esc(s.cutiKet):""}</span></span><span><button class="btn ghost" data-a="edit" data-id="${s.id}">Ubah</button> <button class="btn ghost dn" data-a="del" data-id="${s.id}">${cf==s.id?"Yakin hapus?":"Hapus"}</button></span></div>`).join("");
+  
+  const uLeads=curUnit==="all"?Lz:Lz.filter(l=>(l.unit||"Terazza")===curUnit);
+  const ld=`<div class="sec"><h2>Calon murid (${esc(unitLabel())})</h2>${unitDL}<div class="f"><div><label>Nama</label><input id="ln" type="text"></div><div><label>Unit Dojang</label><input id="lu" type="text" list="unitList" value="${esc(curUnit==="all"?"Terazza":curUnit)}"></div><div><label>Usia</label><input id="la" type="number"></div><div><label>WhatsApp</label><input id="lw" type="tel"></div></div><p><button class="btn" data-a="lead">Catat calon murid</button></p>${uLeads.map(l=>`<div class="row"><span>${esc(l.n)} <span class="pill">${esc(l.unit||"Terazza")}</span> <span class="mu">${esc(l.a||"")} th · ${esc(l.wa||"")}</span></span><span><button class="btn ghost" data-a="conv" data-id="${l.id}">Jadikan murid</button> <button class="btn ghost dn" data-a="dl" data-id="${l.id}">Hapus</button></span></div>`).join("")}</div>`;
+  
+  return need()+`<div class="top"><h1>Murid</h1><button class="btn" data-a="add">Tambah murid</button></div>`+form+
+    (uAll.length?`
+      <div class="sec">
+        <h2>Murid Aktif (${actCnt}) (${esc(unitLabel())})</h2>
+        ${renderFilterBox(actCnt)}
+        ${actCnt?activeListHtml:`<p class="mu">Tidak ada murid aktif di filter ini.</p>`}
+      </div>
+      ${cutiCnt?`
+      <div class="sec">
+        <h2>Murid Sedang Cuti (${cutiCnt})</h2>
+        <p class="mu" style="margin:0 0 10px">Murid cuti dibebaskan dari iuran, absensi, dan penilaian.</p>
+        ${cutiListHtml}
+      </div>`:``}
+    `:f?"":emp())+ld;
+};
 
-V.abs=()=>{const uAll=unitS(),act=activeS(),r=A.find(x=>x.id==ad),ids=(r&&r.ids)||{},c=act.filter(s=>ids[s.id]).length,cutiN=uAll.length-act.length;
-return need()+`<div class="top"><h1>Absensi</h1><div><label>Tanggal latihan</label><input id="ad" type="date" value="${ad}"></div></div>`+(uAll.length?`<div class="sec"><h2>Hadir ${c} dari ${act.length} murid aktif · ${esc(unitLabel())}${cutiN?` <span class="mu" style="font-size:15px">(${cutiN} cuti disembunyikan)</span>`:``}</h2>${renderFilterBox(act.length)}${act.map(s=>`<label class="row" data-srow="1" data-name="${esc(s._n.toLowerCase())}" data-bi="${s.bi}"><span><span class="dot" style="background:${s.c}"></span>${s.n} ${curUnit==="all"?`<span class="pill">${esc(s.unit)}</span>`:`""`} <span class="mu">${s.b} · ${s.att}% total</span></span><input type="checkbox" data-ab="${s.id}" ${ids[s.id]?"checked":""} style="width:22px;height:22px"></label>`).join("")}</div>`:emp())};
+V.abs=()=>{
+  const uAll=unitS(),act=activeS(),r=A.find(x=>x.id==ad),ids=(r&&r.ids)||{},c=act.filter(s=>ids[s.id]).length,cutiN=uAll.length-act.length;
+  return need()+`<div class="top"><h1>Absensi</h1><div><label>Tanggal latihan</label><input id="ad" type="date" value="${ad}"></div></div>`+
+  (uAll.length?`<div class="sec"><h2>Hadir ${c} dari ${act.length} murid aktif · ${esc(unitLabel())}${cutiN?` <span class="mu" style="font-size:15px">(${cutiN} cuti disembunyikan)</span>`:``}</h2>${renderFilterBox(act.length)}${act.map(s=>`<label class="row" data-srow="1" data-name="${esc(s._n.toLowerCase())}" data-bi="${s.bi}"><span><span class="dot" style="background:${s.c}"></span>${s.n} ${curUnit==="all"?`<span class="pill">${esc(s.unit)}</span>`:`""`} <span class="mu">${s.b} · ${s.att}% total</span></span><input type="checkbox" data-ab="${s.id}" ${ids[s.id]?"checked":""} style="width:22px;height:22px"></label>`).join("")}</div>`:emp());
+};
 
 V.pen=()=>{
   const uAll=unitS();
@@ -877,15 +907,16 @@ V.pen=()=>{
 
 V.iur=()=>{const uAll=unitS(),act=activeS(),cuti=uAll.filter(s=>s.cuti),ids=((P.find(x=>x.id==ym)||{}).ids)||{},paidAct=act.filter(s=>ids[s.id]),unpaidAct=act.filter(s=>!ids[s.id]),totPaid=paidAct.reduce((sum,s)=>sum+studentFee(s),0),totUnpaid=unpaidAct.reduce((sum,s)=>sum+studentFee(s),0),subTitle=curUnit==="all"?"Tarif sesuai unit & tarif khusus murid":"Tarif unit "+curUnit+": "+rp(unitFee(curUnit))+"/bln (kecuali tarif khusus)";
 return need()+`<div class="top"><div><h1>Iuran bulanan</h1><span class="mu">${esc(subTitle)}</span></div><div><label>Bulan</label><input id="ym" type="month" value="${ym}"></div></div>`+(uAll.length?`<div class="kpis"><div class="kpi"><strong>${rp(totPaid)}</strong>Terkumpul (${paidAct.length} murid)</div><div class="kpi"><strong>${rp(totUnpaid)}</strong>Belum masuk (${unpaidAct.length} aktif)</div></div><div class="sec"><h2>Daftar iuran murid aktif</h2>${act.map(s=>{const f=studentFee(s);return`<div class="row"><span><span class="dot" style="background:${s.c}"></span>${s.n} ${curUnit==="all"?`<span class="pill">${esc(s.unit)}</span>`:`""`} <span class="mu">· ${rp(f)}</span> ${hasCustomFee(s)?`<span class="pill">Tarif khusus</span>`:`""`}</span><span>${ids[s.id]?"":`<a class="btn ghost" target="_blank" rel="noopener" href="https://wa.me/${wan(s.wa)}?text=${encodeURIComponent("Halo, pengingat iuran "+s._n+" (Unit "+s.unit+") bulan "+ym+" sebesar "+rp(f)+" di Supreme Taekwondo. Terima kasih.")}">Ingatkan</a> `}<label><input type="checkbox" data-py="${s.id}" ${ids[s.id]?"checked":""}> Lunas</label></span></div>`}).join("")}${cuti.length?`<h3 style="margin:20px 0 6px">Murid Sedang Cuti (${cuti.length} — bebas tagihan)</h3>${cuti.map(s=>`<div class="row"><span><span class="dot" style="background:${s.c}"></span>${s.n} <span class="pill">${esc(s.unit)}</span> <span class="mu">${esc(s.cutiKet||"")}</span></span><span class="pill leave">Cuti</span></div>`).join("")}`:""}</div>`:emp())};
+
 V.uji=()=>{const uAll=unitS();return need()+`<div class="top"><div><h1>Ujian kenaikan sabuk</h1><span class="mu">Tandai siap ujian di Laporan murid, lalu tombol Luluskan muncul di sini. Klik dua kali untuk konfirmasi kenaikan sabuk.</span></div></div>`+(uAll.length?`<div class="sec">${[...activeS()].sort((a,b)=>(!!b.siap-!!a.siap)||b.pct-a.pct).map(s=>`<div class="row"><span style="flex:1"><span class="dot" style="background:${s.c}"></span>${s.n} ${curUnit==="all"?`<span class="pill">${esc(s.unit)}</span>`:`""`} <span class="mu">${s.b} → ${s.nx}</span>${s.siap?' <span class="pill">Siap ujian</span>':""}
 <div class="meter"><i style="width:${s.pct}%"></i></div></span><span style="display:flex;gap:10px;align-items:center"><b>${s.pct}%</b>${s.siap&&s.bi<10?`<button class="btn" style="${cfLulus==s.id?"background:var(--ok)":""}" data-a="lulus" data-id="${s.id}">${cfLulus==s.id?"Yakin naik ke "+s.nx+"?":"Luluskan ke "+s.nx}</button>${cfLulus==s.id?`<button class="btn ghost" data-a="batalLulus">Batal</button>`:`""`}`:""}</span></div>`).join("")}</div>`:emp())};
+
 V.jad=()=>{const units=getUnits(),uClasses=unitJ(),defU=curUnit==="all"?"Terazza":curUnit;
 return need()+`<div class="top"><h1>Jadwal &amp; Unit Dojang</h1></div>
 <div class="sec"><h2>Kelola Unit Dojang &amp; Tarif Standar</h2><p class="mu">Atur tarif standar iuran bulanan per unit dojang (bisa juga ditimpa per anak di menu Murid).</p>
 <div class="f" style="max-width:620px;margin-bottom:16px"><div><label>Nama Unit Dojang Baru</label><input id="newUnitInp" type="text" placeholder="Misal: Gading Serpong"></div><div><label>Tarif Iuran Bulanan (Rp)</label><input id="newUnitFee" type="number" min="0" step="10000" value="500000"></div><div style="display:flex;align-items:flex-end"><button class="btn" data-a="addUnit">Tambah Unit</button></div></div>
 ${units.map(u=>`<div class="row" style="flex-wrap:wrap"><span><b>🥋 ${esc(u)}</b> <span class="mu">(${S.filter(s=>s.unit===u).length} murid)</span></span><span style="display:flex;gap:8px;align-items:center"><span class="mu" style="font-size:13px">Rp</span><input id="ufee_${slug(u)}" type="number" min="0" step="10000" value="${unitFee(u)}" style="width:140px;padding:7px 9px"><button class="btn ghost" data-a="saveUnitFee" data-unit="${esc(u)}">Simpan Tarif</button></span></div>`).join("")}</div>
 <div class="sec"><h2>Tambah kelas (${esc(unitLabel())})</h2><datalist id="unitList">${units.map(u=>`<option value="${esc(u)}">`).join("")}</datalist><div class="f"><div><label>Unit Dojang</label><input id="ju" type="text" list="unitList" value="${esc(defU)}"></div><div><label>Hari</label><input id="jh" type="text" placeholder="Selasa"></div><div><label>Jam</label><input id="jj" type="text" placeholder="18.00 – 20.00"></div><div><label>Lokasi</label><input id="jl" type="text" placeholder="Terazza 301 / PIK 2"></div><div><label>Pelatih</label><input id="jp" type="text" placeholder="Sabeum Shandy"></div></div><p><button class="btn" data-a="cls">Simpan kelas</button></p>${uClasses.map(c=>`<div class="row"><span><b>${esc(c.h)}, ${esc(c.j)}</b> <span class="pill">${esc(c.unit||"Terazza")}</span><br><span class="mu">${esc(c.l)} · ${esc(c.p)}</span></span><button class="btn ghost dn" data-a="dc" data-id="${c.id}">Hapus</button></div>`).join("")}</div>`};
-const ol=V.lap;V.lap=()=>{if(!unitS().length)return need()+emp();return ol()};
 
 document.addEventListener("click",async e=>{
 const fb=e.target.closest("[data-fbelt]");
@@ -1015,6 +1046,7 @@ document.addEventListener("change",async e=>{const t=e.target;
 if(t.id=="ad"){ad=t.value||ad;evSaveStatus="";return draw()}
 if(t.id=="ym"){ym=t.value||ym;return draw()}
 if(t.id=="coachInp"){coachName=t.value.trim()||"Sabeum Shandy";rememberCoach(coachName);evSaveStatus="";return draw()}
+if(t.id=="lapSelMurid"){selId=t.value;return draw()}
 if(t.dataset.ev){queueAutoSave();return;}
 const att=!!t.dataset.ab,id=t.dataset.ab||t.dataset.py;if(!id)return;
 if(!db)return toast("Masukkan PIN terlebih dahulu");
@@ -1025,9 +1057,6 @@ try{await db.doc((att?"attendance/":"payments/")+key).set(att?{date:key,ids}:{id
 const sub=(n,f)=>db.collection(n).onSnapshot(q=>{f(q.docs.map(d=>({id:d.id,...d.data()})));const ghBusy=cur==="dat"&&((document.getElementById("ghPkg")?.value||"").trim()||(document.getElementById("ghRes")?.innerHTML||"").trim());if(!ghBusy&&!document.activeElement?.closest?.("#app input,#app textarea,#app select"))draw()},()=>toast("Data belum bisa dimuat"));
 sub("students",sync);sub("attendance",x=>A=x);sub("payments",x=>P=x);sub("leads",x=>Lz=x);sub("evaluations",x=>E=x);sub("classes",x=>J=x);sub("coaches",x=>CList=x);sub("units",x=>UList=x);draw()}catch(e){}})();
 draw();
-
-const ol2=V.lap;V.lap=()=>{const list=unitS();const s=list.find(x=>x.id===selId)||list[0];if(!s)return ol2();const rdy=s.pct>=70&&s.bi<10;const rb=`<div class="note" style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><span>${s.cuti?`<b>Murid sedang cuti</b> · tidak diikutkan ujian selama masa cuti`:s.siap?`<b>Ditandai siap ujian naik sabuk ke ${s.nx}</b> · progres ${s.pct}%`:rdy?`<b>Progres sudah 70% ke atas</b> · belum ditandai siap ujian`:`Belum siap ujian · progres ${s.pct}% (target 70%)`}</span>${s.bi<10&&!s.cuti?`<button class="btn" data-a="tanda" data-id="${s.id}">${s.siap?"Batalkan tanda siap":"Tandai siap ujian"}</button>`:`""`}</div>`;const es=E.filter(x=>x.ev&&x.ev[s.id]).sort((a,b)=>(a.date||a.id)<(b.date||b.id)?1:-1);const av=k=>{const v=es.map(x=>x.ev[s.id][k]).filter(Number.isFinite);return v.length?(v.reduce((p,c)=>p+c,0)/v.length).toFixed(1):"–"};
-return rb+ol2()+`<div class="sec" style="margin-top:20px"><h2>Penilaian kelas</h2><div class="kpis"><div class="kpi"><strong>${av("t")}</strong>Rata-rata teknik</div><div class="kpi"><strong>${av("k")}</strong>Rata-rata sikap</div><div class="kpi"><strong>${av("f")}</strong>Rata-rata fisik</div><div class="kpi"><strong>${es.length}</strong>Catatan nilai</div></div>${es.length?es.map(x=>`<div class="row"><span><b>${esc(x.date||x.id)}</b> · <span class="pill">${esc(x.coach||"Pelatih")}</span><br><span class="mu">${esc(x.ev[s.id].n||"Tanpa catatan")}</span></span><span class="mu">T ${x.ev[s.id].t||"–"} · S ${x.ev[s.id].k||"–"} · F ${x.ev[s.id].f||"–"}</span></div>`).join(""):`<p class="mu">Belum ada penilaian untuk murid ini.</p>`}</div>`};
 
 const DCOL=["students","attendance","payments","leads","classes","evaluations","coaches","units"];
 const dlFile=async(name,text)=>{let dl=null;try{dl=window.claude?await claude.use("downloads"):null}catch(e){}if(dl){try{await dl.save({filename:name,data:text});return}catch(e){}}const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();a.remove()};
