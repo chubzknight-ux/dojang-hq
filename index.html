@@ -216,6 +216,8 @@ if(portalId){
       const nc=unitClasses[0]||data.classes[0];
       const waKonfirm="Halo Sabeum Shandy, saya orang tua/wali dari "+d.n+" (Unit "+sUnit+") ingin konfirmasi iuran bulan "+ymNow+" ("+rp(sFee)+") di Supreme Taekwondo.";
       const cutiBanner=d.cuti?`<div class="note" style="border-left-color:#F2B600"><b>Status Murid: Sedang Cuti</b>${d.cutiKet?" · "+esc(d.cutiKet):""}${d.cutiTgl?" (sejak "+esc(d.cutiTgl)+")":""}</div>`:"";
+      const sibs=Array.isArray(data.siblings)?data.siblings:[];
+      const sibBar=sibs.length?`<div class="note" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><span><b>👨‍👩‍👧‍👦 Portal Saudara Kandung (Siblings):</b> Lihat perkembangan ananda lainnya</span><div class="chips" style="margin:0"><span class="chip" aria-pressed="true">🥋 ${esc(d.n)}</span>${sibs.map(sb=>`<a class="chip" style="text-decoration:none;color:inherit" href="/?portal=${encodeURIComponent(sb.id)}">🥋 ${esc(sb.n)}</a>`).join("")}</div></div>`:"";
 
       $("#app").innerHTML=`
         <div class="hero">
@@ -230,6 +232,7 @@ if(portalId){
             <small>${nc?esc(nc.l)+" · "+esc(nc.p):"Supreme Taekwondo "+esc(sUnit)}</small>
           </div>
         </div>
+        ${sibBar}
         ${cutiBanner}
         <div class="kpis">
           <div class="kpi"><strong>${pct}%</strong>Progres ke sabuk ${nextBelt}</div>
@@ -641,7 +644,7 @@ lap(){const list=unitS();const s=list.find(x=>x.id===selId)||list[0];if(!s)retur
 const mAtt=A.filter(x=>x.id.startsWith(ym));
 const mHadir=mAtt.filter(x=>x.ids&&x.ids[s.id]).length;
 const mEv=E.filter(x=>(x.date||x.id).startsWith(ym)&&x.ev&&x.ev[s.id]);
-const mAvg=k=>{const v=mEv.map(x=>x.ev[s.id][k]).filter(Number.isFinite);return v.length?(v.reduce((p,c)=>p+c,0)/v.length).toFixed(1)+"/5":"–"};
+const mAvg=(k,sid=s.id)=>{const evs=E.filter(x=>(x.date||x.id).startsWith(ym)&&x.ev&&x.ev[sid]);const v=evs.map(x=>x.ev[sid][k]).filter(Number.isFinite);return v.length?(v.reduce((p,c)=>p+c,0)/v.length).toFixed(1)+"/5":"–"};
 const portalUrl=location.origin+"/?portal="+encodeURIComponent(s.id);
 const sapaOrtu=s._ortu?"Halo "+s._ortu+", ":"Halo Orang Tua/Wali dari "+s._n+", ";
 const wa=sapaOrtu+"berikut ringkasan perkembangan ananda "+s._n+" di Supreme Taekwondo Unit "+s.unit+" (Bulan "+ym+"):\n"+
@@ -650,16 +653,31 @@ const wa=sapaOrtu+"berikut ringkasan perkembangan ananda "+s._n+" di Supreme Tae
 "• Rata-rata nilai bulan ini: Teknik "+mAvg("t")+", Sikap "+mAvg("k")+", Fisik "+mAvg("f")+"\n"+
 "• Catatan Sabeum: "+s._note+"\n\n"+
 "Pantau laporan lengkap, jadwal & status iuran anak secara langsung di Portal Orang Tua:\n"+portalUrl;
+const fk=familyKey(s);
+const famAll=fk.startsWith("id:")?[s]:S.filter(x=>!x.cuti&&familyKey(x)===fk);
+const sibs=famAll.filter(x=>x.id!==s.id);
+let waFam="";
+if(famAll.length>1){
+  const detailSibs=famAll.map((ch,idx)=>{
+    const chHadir=mAtt.filter(x=>x.ids&&x.ids[ch.id]).length;
+    const chUrl=location.origin+"/?portal="+encodeURIComponent(ch.id);
+    return `${idx+1}. *${ch._n}* (${ch.unit})\n• Sabuk: ${ch.b} (progres ke ${ch.nx}: ${ch.pct}%)\n• Kehadiran ${ym}: ${chHadir}/${mAtt.length} sesi (Total: ${ch.att}%)\n• Nilai rata-rata: Teknik ${mAvg("t",ch.id)}, Sikap ${mAvg("k",ch.id)}, Fisik ${mAvg("f",ch.id)}\n• Catatan Sabeum: ${ch._note}\n• Portal Orang Tua: ${chUrl}`;
+  }).join("\n\n");
+  waFam=sapaOrtu+"berikut ringkasan perkembangan ananda di Supreme Taekwondo (Bulan "+ym+"):\n\n"+detailSibs+"\n\nTerima kasih, salam sehat! 🙏";
+}
+const waTarget=famAll.map(x=>wan(x.wa)).find(Boolean)||wan(s.wa);
+const sibBanner=famAll.length>1?`<div class="note" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><span><b>👨‍👩‍👧‍👦 Siblings Terdeteksi (${famAll.length} bersaudara):</b> Beralih cepat antar-saudara</span><div class="chips" style="margin:0">${famAll.map(ch=>`<button class="chip" aria-pressed="${ch.id===s.id}" data-a="pickLapSib" data-id="${ch.id}">🥋 ${esc(ch._n)} (${esc(ch.unit)})</button>`).join("")}</div></div>`:"";
 return`<div class="top"><h1>Laporan performa murid</h1><span class="pill">${esc(unitLabel())}</span></div>
 <div style="margin-bottom:16px"><label>Pilih Murid (Aktif &amp; Cuti)</label><select id="lapSelMurid" aria-label="Pilih Murid">
 ${list.map(x=>`<option value="${x.id}" ${x.id===s.id?"selected":""}>${esc(x.n)} (${esc(x.unit)}) ${x.cuti?"[Cuti]":""}</option>`).join("")}
 </select></div>
-<div class="grid"><div class="sec"><h2>${s.n} <span class="pill">${esc(s.unit)}</span> ${s.cuti?'<span class="pill leave">Sedang Cuti</span>':''}</h2><p class="mu" style="margin:0 0 14px">${s.ortu?"Wali: "+esc(s.ortu)+" · ":""}${s.gender?esc(s.gender)+" · ":""}${s.a} tahun · <span class="dot" style="background:${s.c}"></span>${s.b} · Iuran ${rp(studentFee(s))}/bln${hasCustomFee(s)?" (tarif khusus)":""}${s.cuti&&s.cutiKet?" · "+esc(s.cutiKet):""}</p>
+${sibBanner}
+<div class="grid"><div class="sec"><h2>${s.n} <span class="pill">${esc(s.unit)}</span> ${famAll.length>1?`<span class="pill ok">Siblings (${famAll.length})</span>`:`""`} ${s.cuti?'<span class="pill leave">Sedang Cuti</span>':''}</h2><p class="mu" style="margin:0 0 14px">${s.ortu?"Wali: "+esc(s.ortu)+" · ":""}${s.gender?esc(s.gender)+" · ":""}${s.a} tahun · <span class="dot" style="background:${s.c}"></span>${s.b} · Iuran ${rp(studentFee(s))}/bln${hasCustomFee(s)?" (tarif khusus)":""}${s.cuti&&s.cutiKet?" · "+esc(s.cutiKet):""}</p>
 <b>Progres menuju sabuk ${s.nx}: ${s.pct}%</b><div class="meter"><i style="width:${s.pct}%"></i></div>
 <b>Kehadiran total: ${s.att}%</b><div class="meter"><i style="width:${s.att}%"></i></div>
 <h3 style="margin:16px 0 4px">Catatan pelatih</h3><p style="margin:0 0 16px">${s.note}</p>
 <div style="display:flex;gap:10px;flex-wrap:wrap">
-  <a class="btn" target="_blank" rel="noopener" href="https://wa.me/${wan(s.wa)}?text=${encodeURIComponent(wa)}">Kirim WA + Link Portal</a>
+  ${famAll.length>1?`<a class="btn" target="_blank" rel="noopener" href="https://wa.me/${waTarget}?text=${encodeURIComponent(waFam)}">Kirim WA (${famAll.length} Siblings) + Link Portal</a><a class="btn ghost" target="_blank" rel="noopener" href="https://wa.me/${waTarget}?text=${encodeURIComponent(wa)}">WA ${esc(s._n)} Saja</a>`:`<a class="btn" target="_blank" rel="noopener" href="https://wa.me/${waTarget}?text=${encodeURIComponent(wa)}">Kirim WA + Link Portal</a>`}
   <button class="btn ghost" data-a="copyPortal" data-id="${s.id}">Salin Link Portal Orang Tua</button>
 </div></div>
 <div class="sec"><h2>Keterampilan</h2>${radar(s.sk)}${Object.entries(s.sk).map(([k,v])=>`<div class="sk"><span>${k}</span><div class="meter"><i style="width:${v}%"></i></div><b>${v}</b></div>`).join("")}</div></div>`},
@@ -949,6 +967,7 @@ const fb=e.target.closest("[data-fbelt]");
 if(fb){fBelt=fb.dataset.fbelt;return draw();}
 const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a,id=b.dataset.id;
 if(a=="resetFilter"){fSearch="";fBelt="all";return draw();}
+if(a=="pickLapSib"){selId=id;return draw();}
 if(a=="add"){ed={};cf=null;cur="mur";return draw()}
 if(a=="edit"){ed=S.find(s=>s.id==id);return draw()}
 if(a=="cancel"){ed=null;return draw()}
