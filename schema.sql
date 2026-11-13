@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS docs (
+  coll TEXT NOT NULL,
+  id TEXT NOT NULL,
+  data TEXT NOT NULL,
+  PRIMARY KEY (coll, id)
+);
