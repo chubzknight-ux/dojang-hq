@@ -14,7 +14,11 @@ export async function onRequestGet({ request, env }) {
 
   const getCol = async name => {
     const { results } = await env.DB.prepare("SELECT id, data FROM docs WHERE col = ?").bind(name).all();
-    return results.map(r => ({ id: r.id, ...JSON.parse(r.data) }));
+    return results.map(r => {
+      let parsed = {};
+      try { parsed = JSON.parse(r.data || "{}"); } catch (e) {}
+      return { id: r.id, ...parsed };
+    });
   };
 
   const [students, attendance, payments, evaluations, classes] = await Promise.all([
@@ -30,15 +34,25 @@ export async function onRequestGet({ request, env }) {
   const sidLow = sid.toLowerCase();
 
   const isIdChecked = mapObj => {
-    if (!mapObj || typeof mapObj !== "object") return false;
+    if (!mapObj) return false;
+    if (Array.isArray(mapObj)) {
+      return mapObj.some(x => String(x || "").trim() === sid || String(x || "").trim().toLowerCase() === sidLow);
+    }
+    if (typeof mapObj !== "object") return false;
     if (mapObj[sid] === true || mapObj[id] === true) return true;
     for (const [k, v] of Object.entries(mapObj)) {
-      if (v === true && (String(k).trim() === sid || String(k).trim().toLowerCase() === sidLow)) return true;
+      if (v && (String(k).trim() === sid || String(k).trim().toLowerCase() === sidLow)) return true;
     }
     return false;
   };
 
   const payByMonth = new Map();
+  if (Array.isArray(st.paidMonths)) {
+    for (const m of st.paidMonths) {
+      const k = String(m || "").trim().slice(0, 7);
+      if (k) payByMonth.set(k, true);
+    }
+  }
   for (const p of payments) {
     const ymKey = String(p.month || p.id || "").trim().slice(0, 7);
     if (!ymKey) continue;
