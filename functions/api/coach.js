@@ -1,5 +1,7 @@
 const J=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}});
-const validId=id=>/^[A-Za-z0-9_-]{1,80}$/.test(id);
+const validId=id=>/^[A-Za-z0-9_-]{1,120}$/.test(id);
+const DATE_ID=/^\d{4}-\d{2}-\d{2}(__[A-Za-z0-9_-]{1,80})?$/;
+const clip=(s,n)=>String(s==null?"":s).slice(0,n);
 
 export async function onRequestGet({env}){
   const rs=await env.DB.prepare("SELECT coll,id,data FROM docs WHERE coll IN ('students','evaluations','classes','coaches','units','settings')").all();
@@ -32,9 +34,22 @@ export async function onRequestPost({env,request}){
 
   if(body.action==="save_eval"){
     const id=String(body.id||"").trim();
-    if(!validId(id)||!body.data||typeof body.data!=="object")return J({error:"invalid eval"},400);
+    const d=body.data;
+    if(!validId(id)||!d||typeof d!=="object"||Array.isArray(d))return J({error:"invalid eval"},400);
+    if(JSON.stringify(d).length>200000)return J({error:"too large"},413);
+    let clean;
+    if(d.type==="coach_eval"){
+      if(!id.startsWith("coach_eval__"))return J({error:"invalid eval id"},400);
+      const r=d.ratings&&typeof d.ratings==="object"?d.ratings:{};
+      const rt={};
+      for(const k of ["m","t","k","d","w"]){const v=Number(r[k]);rt[k]=v>=1&&v<=5?Math.round(v):5;}
+      clean={type:"coach_eval",coach:"",targetCoachId:clip(d.targetCoachId,80),targetCoachName:clip(d.targetCoachName,120),parentName:clip(d.parentName,120),studentName:clip(d.studentName,120),date:clip(d.date,10),updatedAt:clip(d.updatedAt,20),ratings:rt,comment:clip(d.comment,1500)};
+    }else{
+      if(!DATE_ID.test(id)||!d.ev||typeof d.ev!=="object"||Array.isArray(d.ev))return J({error:"invalid eval id"},400);
+      clean={date:clip(d.date,10),coach:clip(d.coach,120),updatedAt:clip(d.updatedAt,20),ev:d.ev};
+    }
     await env.DB.prepare("INSERT OR REPLACE INTO docs(coll,id,data) VALUES('evaluations',?,?)")
-      .bind(id,JSON.stringify(body.data)).run();
+      .bind(id,JSON.stringify(clean)).run();
     return J({ok:true});
   }
 
