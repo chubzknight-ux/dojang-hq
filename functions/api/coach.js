@@ -2,8 +2,9 @@ const J=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"content-ty
 const validId=id=>/^[A-Za-z0-9_-]{1,80}$/.test(id);
 
 export async function onRequestGet({env}){
-  const rs=await env.DB.prepare("SELECT coll,id,data FROM docs WHERE coll IN ('students','evaluations','classes','coaches','units')").all();
+  const rs=await env.DB.prepare("SELECT coll,id,data FROM docs WHERE coll IN ('students','evaluations','classes','coaches','units','settings')").all();
   const students=[],evaluations=[],classes=[],coaches=[],units=[];
+  let logo=null;
   for(const r of rs.results){
     const d=JSON.parse(r.data);
     if(r.coll==="students"&&!d.cuti)students.push({id:r.id,n:d.n,a:d.a,bi:d.bi,v:d.v,unit:d.unit||"Terazza"});
@@ -11,8 +12,9 @@ export async function onRequestGet({env}){
     else if(r.coll==="classes")classes.push({id:r.id,unit:d.unit||"Terazza",...d});
     else if(r.coll==="coaches")coaches.push({id:r.id,...d});
     else if(r.coll==="units")units.push({id:r.id,...d});
+    else if(r.coll==="settings"&&r.id==="logo")logo=typeof d.data==="string"?d.data:"";
   }
-  return J({students,evaluations,classes,coaches,units});
+  return J({students,evaluations,classes,coaches,units,logo});
 }
 
 export async function onRequestPost({env,request}){
