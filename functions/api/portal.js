@@ -1,6 +1,12 @@
 export async function onRequestGet({ request, env }) {
-  const id = new URL(request.url).searchParams.get("id");
-  if (!id) return Response.json({ error: "id required" }, { status: 400 });
+  const rawId = new URL(request.url).searchParams.get("id") || "";
+  const id = rawId.trim().replace(/^\/+|\/+$/g, "");
+  if (!id) {
+    return Response.json({ error: "id required" }, {
+      status: 400,
+      headers: { "Cache-Control": "no-store" }
+    });
+  }
 
   const clean = s => String(s || "").replace(/\D/g, "").replace(/^0/, "62");
   const fKey = st => {
@@ -20,20 +26,74 @@ export async function onRequestGet({ request, env }) {
     getCol("students"), getCol("attendance"), getCol("payments"), getCol("evaluations"), getCol("classes")
   ]);
 
-  const st = students.find(s => s.id === id);
-  if (!st) return Response.json({ error: "not found" }, { status: 404 });
+  const idLow = id.toLowerCase();
+  const st = students.find(s => String(s.id || "").trim() === id)
+    || students.find(s => String(s.id || "").trim().toLowerCase() === idLow);
+
+  if (!st) {
+    return Response.json({ error: "not found" }, {
+      status: 404,
+      headers: { "Cache-Control": "no-store" }
+    });
+  }
+
+  const sid = String(st.id).trim();
+  const sidLow = sid.toLowerCase();
+
+  const hasId = ids => {
+    if (!ids) return false;
+    if (Array.isArray(ids)) return ids.some(x => String(x || "").trim().toLowerCase() === sidLow);
+    if (typeof ids === "object") {
+      return Object.entries(ids).some(([k, v]) => Boolean(v) && String(k || "").trim().toLowerCase() === sidLow);
+    }
+    return false;
+  };
+
+  const payMap = new Map();
+  payments.forEach(p => {
+    const ym = String(p.month || p.id || "").trim().slice(0, 7);
+    if (!ym) return;
+    const paid = hasId(p.ids);
+    payMap.set(ym, Boolean(payMap.get(ym)) || paid);
+  });
+
+  if (Array.isArray(st.paidMonths)) {
+    st.paidMonths.forEach(m => {
+      const ym = String(m || "").trim().slice(0, 7);
+      if (ym) payMap.set(ym, true);
+    });
+  }
+
+  const normalizedPayments = [...payMap.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([ym, lunas]) => ({ id: ym, month: ym, lunas }));
 
   const fk = fKey(st);
   const siblings = fk
-    ? students.filter(s => s.id !== st.id && !s.cuti && fKey(s) === fk).map(s => ({ id: s.id, n: s.n, unit: s.unit || "Terazza" }))
+    ? students
+        .filter(s => s.id !== st.id && !s.cuti && fKey(s) === fk)
+        .map(s => ({ id: s.id, n: s.n, unit: s.unit || "Terazza" }))
     : [];
 
   return Response.json({
     student: st,
     siblings,
-    attendance: attendance.map(a => ({ id: a.id, hadir: !!(a.ids && a.ids[id]) })),
-    payments: payments.map(p => ({ id: p.id, lunas: !!(p.ids && p.ids[id]) })),
-    evaluations: evaluations.filter(e => e.ev && e.ev[id]).map(e => ({ id: e.id, date: e.date || e.id.slice(0, 10), coach: e.coach || "Pelatih", ...e.ev[id] })),
+    attendance: attendance.map(a => ({ id: a.id, hadir: hasId(a.ids) })),
+    payments: normalizedPayments,
+    evaluations: evaluations
+      .filter(e => e.ev && (e.ev[sid] || e.ev[id]))
+      .map(e => ({
+        id: e.id,
+        date: e.date || String(e.id || "").slice(0, 10),
+        coach: e.coach || "Pelatih",
+        ...(e.ev[sid] || e.ev[id])
+      })),
     classes
+  }, {
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0"
+    }
   });
 }
