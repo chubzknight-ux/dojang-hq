@@ -168,28 +168,44 @@ function renderParentCoachReviewForm(cRec,prefillParent,prefillStudent,savedMsg)
 
 if(portalId){
   document.body.classList.add("standalone-portal");
-  const ymNow=ymd().slice(0,7);
   let portalData=null,pubCoachBundle=null,portalCoachId="",portalEvalDoneMsg="";
-  function isStudentPaidForMonth(payList,targetYm,idCandidates){
+  function normalizePaymentRecords(raw){
+    if(Array.isArray(raw))return raw.filter(x=>x&&typeof x==="object");
+    if(raw&&typeof raw==="object"){
+      return Object.entries(raw).map(([k,v])=>v&&typeof v==="object"?{id:v.id||k,month:v.month||k,...v}:{id:k,month:k,ids:{}});
+    }
+    return[];
+  }
+  function isStudentPaidForMonth(payList,targetYm,idCandidates,studentObj){
+    if(studentObj&&(studentObj.lunas===true||studentObj.paid===true||studentObj.statusIuran==="lunas"))return true;
     const validIds=[...new Set(idCandidates.filter(Boolean).map(x=>String(x).trim()))];
-    const payCur=(Array.isArray(payList)?payList:[]).find(x=>x&&(x.id===targetYm||x.month===targetYm||String(x.id||"").startsWith(targetYm)));
-    if(!payCur)return false;
+    const validLow=validIds.map(x=>x.toLowerCase());
+    const matches=(Array.isArray(payList)?payList:[]).filter(x=>x&&(x.id===targetYm||x.month===targetYm||String(x.id||"").startsWith(targetYm)||String(x.month||"").startsWith(targetYm)));
+    if(!matches.length)return false;
+    matches.sort((a,b)=>String(b.updatedAt||"").localeCompare(String(a.updatedAt||"")));
+    const payCur=matches[0];
     if(payCur.lunas===true)return true;
     if(!payCur.ids||typeof payCur.ids!=="object")return false;
-    return validIds.some(k=>!!payCur.ids[k]);
+    for(const [k,val] of Object.entries(payCur.ids)){
+      if(!val)continue;
+      const ks=String(k).trim();
+      if(validIds.includes(ks)||validLow.includes(ks.toLowerCase()))return true;
+    }
+    return false;
   }
   function renderParentPortal(){
     if(!portalData)return;
+    const ymNow=ymd().slice(0,7);
     const data=portalData,BL=getBL(),lu=getLogoUri();
     const d=data.student||data;
     if(!d||(!d.n&&!d.id&&!data.id))throw new Error("Data murid tidak lengkap");
     const sid=String(d.id||data.id||portalId).trim();
     const attList=Array.isArray(data.attendance)?data.attendance:[];
     const evList=Array.isArray(data.evaluations)?data.evaluations:[];
-    const payList=Array.isArray(data.payments)?data.payments:[];
+    const payList=[...normalizePaymentRecords(data.payments),...normalizePaymentRecords(pubCoachBundle&&pubCoachBundle.payments)];
     const clsList=Array.isArray(data.classes)?data.classes:[];
     const sUnit=d.unit||"Terazza";
-    const sFee=(d.fee!==undefined&&d.fee!==null&&d.fee!==""&&Number(d.fee)>=0)?Number(d.fee):RP;
+    const sFee=(d.fee!==undefined&&d.fee!==null&&d.fee!===""&&Number(d.fee)>=0)?Number(d.fee):RP;
     const rawBi=d.v==2?(d.bi||0):([0,1,3,5,7,10][d.bi||0]??0);
     const bi=Math.max(0,Math.min(10,Number(rawBi)||0));
     const beltName=BL[bi][0],beltColor=BL[bi][1];
@@ -203,7 +219,7 @@ if(portalId){
     const scRate=r.length?r.reduce((p,c)=>p+c,0)/r.length/5:0;
     const pct=(sesSince.length||r.length)?Math.round((scRate*0.7+attRate*0.3)*100):(Number(d.pct)||0);
     const attTotal=attList.length?Math.round(attList.filter(x=>x.hadir).length/attList.length*100):0;
-    const isLunas=isStudentPaidForMonth(payList,ymNow,[sid,d.id,data.id,portalId]);
+    const isLunas=isStudentPaidForMonth(payList,ymNow,[sid,d.id,data.id,data._matchedId,portalId],d);
     const recentAtt=[...attList].sort((a,b)=>String(a.id||"")<String(b.id||"")?1:-1).slice(0,8);
     const recentEv=[...evList].sort((a,b)=>String(a.date||a.id||"")<String(b.date||b.id||"")?1:-1);
     const avField=fDef=>{const v=recentEv.map(x=>readEvalFieldScore(x,fDef)).filter(n=>n!==null);return v.length?(v.reduce((p,c)=>p+c,0)/v.length).toFixed(1):"–"};
@@ -255,31 +271,46 @@ if(portalId){
   document.addEventListener("change",e=>{if(e.target.id==="portalCoachSel"){portalCoachId=e.target.value;portalEvalDoneMsg="";renderParentPortal();}});
   async function loadParentPortal(isInitial){
     let pRes=null,pStatus=0;
+    const ts="&_t="+Date.now();
     try{
-      const r=await fetch("/api/portal?id="+encodeURIComponent(portalId),{cache:"no-store"});
+      const r=await fetch("/api/portal?id="+encodeURIComponent(portalId)+ts,{cache:"no-store"});
       pStatus=r.status;
       if(r.ok)pRes=await r.json();
     }catch(e){}
-    const cBundle=await fetch("/api/coach",{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null);
+    const cBundle=await fetch("/api/coach?_t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null);
     if(cBundle)pubCoachBundle=cBundle;
     if(cBundle&&Array.isArray(cBundle.students)){
       const targetLow=portalId.toLowerCase();
       const targetSlug=slug(portalId);
+      const curNameSlug=pRes&&pRes.student&&pRes.student.n?slug(pRes.student.n):"";
       const matched=cBundle.students.find(s=>String(s.id||"")===portalId)
         ||cBundle.students.find(s=>String(s.id||"").toLowerCase()===targetLow)
-        ||cBundle.students.find(s=>slug(s.n||"")===targetSlug);
+        ||cBundle.students.find(s=>slug(s.n||"")===targetSlug)
+        ||(curNameSlug?cBundle.students.find(s=>slug(s.n||"")===curNameSlug):null);
       if(matched){
-        if((!pRes||!Array.isArray(pRes.payments)||!pRes.payments.length)&&matched.id&&matched.id!==portalId){
+        if(matched.id&&matched.id!==portalId){
           try{
-            const r2=await fetch("/api/portal?id="+encodeURIComponent(matched.id),{cache:"no-store"});
-            if(r2.ok)pRes=await r2.json();
+            const r2=await fetch("/api/portal?id="+encodeURIComponent(matched.id)+ts,{cache:"no-store"});
+            if(r2.ok){
+              const r2Json=await r2.json();
+              if(!pRes){
+                pRes=r2Json;
+              }else{
+                const p1=normalizePaymentRecords(pRes.payments);
+                const p2=normalizePaymentRecords(r2Json.payments);
+                pRes={...r2Json,...pRes,student:{...(r2Json.student||{}),...(pRes.student||{}),id:matched.id},payments:[...p1,...p2]};
+              }
+            }
           }catch(e){}
         }
-        if(pRes&&pRes.student&&!pRes.student.id)pRes.student.id=matched.id;
+        if(pRes&&pRes.student){
+          if(!pRes.student.id)pRes.student.id=matched.id;
+          pRes._matchedId=matched.id;
+        }
         if(!pRes){
           const sid=matched.id;
           const mappedEvs=(cBundle.evaluations||[]).filter(x=>!isParentCoachEvalDoc(x)&&x.ev&&x.ev[sid]).map(x=>({id:x.id,date:x.date||String(x.id||"").slice(0,10),coach:x.coach||"",...x.ev[sid]}));
-          pRes={id:sid,student:matched,attendance:[],evaluations:mappedEvs,payments:Array.isArray(cBundle.payments)?cBundle.payments:[],classes:cBundle.classes||[],siblings:[]};
+          pRes={id:sid,_matchedId:sid,student:matched,attendance:[],evaluations:mappedEvs,payments:normalizePaymentRecords(cBundle.payments),classes:cBundle.classes||[],siblings:[]};
         }
       }
     }
@@ -301,7 +332,9 @@ if(portalId){
   }
   $("#app").innerHTML=`<div class="sec"><h2>${T("Memuat Portal Orang Tua...","Loading Parent Portal...")}</h2><p class="mu">${T("Mohon tunggu sebentar.","Please wait a moment.")}</p></div>`;
   loadParentPortal(true);
-  setInterval(()=>loadParentPortal(false),15000);
+  setInterval(()=>loadParentPortal(false),8000);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")loadParentPortal(false);});
+  window.addEventListener("focus",()=>loadParentPortal(false));
 } else if(coachProfileId){
   document.body.classList.add("standalone-portal");
   let pubData=null,selectedCoachId=coachProfileId,evalSubmittedMsg="";
