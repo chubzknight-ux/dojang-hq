@@ -18,7 +18,7 @@ export async function onRequestGet({ request, env }) {
   };
 
   const getCol = async name => {
-    const { results } = await env.DB.prepare("SELECT id, data FROM docs WHERE col = ?").bind(name).all();
+    const { results } = await env.DB.prepare("SELECT id, data FROM docs WHERE coll = ?").bind(name).all();
     return results.map(r => ({ id: r.id, ...JSON.parse(r.data) }));
   };
 
