@@ -1,4 +1,3 @@
-===FILE: functions/api/portal.js===
 export async function onRequestGet({ request, env }) {
   const rawId = new URL(request.url).searchParams.get("id");
   const id = String(rawId || "").trim();
