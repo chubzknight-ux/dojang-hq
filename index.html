@@ -170,11 +170,20 @@ if(portalId){
   document.body.classList.add("standalone-portal");
   const ymNow=ymd().slice(0,7);
   let portalData=null,pubCoachBundle=null,portalCoachId="",portalEvalDoneMsg="";
+  function isStudentPaidForMonth(payList,targetYm,idCandidates){
+    const validIds=[...new Set(idCandidates.filter(Boolean).map(x=>String(x).trim()))];
+    const payCur=(Array.isArray(payList)?payList:[]).find(x=>x&&(x.id===targetYm||x.month===targetYm||String(x.id||"").startsWith(targetYm)));
+    if(!payCur)return false;
+    if(payCur.lunas===true)return true;
+    if(!payCur.ids||typeof payCur.ids!=="object")return false;
+    return validIds.some(k=>!!payCur.ids[k]);
+  }
   function renderParentPortal(){
     if(!portalData)return;
     const data=portalData,BL=getBL(),lu=getLogoUri();
     const d=data.student||data;
-    if(!d||(!d.n&&!d.id))throw new Error("Data murid tidak lengkap");
+    if(!d||(!d.n&&!d.id&&!data.id))throw new Error("Data murid tidak lengkap");
+    const sid=String(d.id||data.id||portalId).trim();
     const attList=Array.isArray(data.attendance)?data.attendance:[];
     const evList=Array.isArray(data.evaluations)?data.evaluations:[];
     const payList=Array.isArray(data.payments)?data.payments:[];
@@ -194,8 +203,7 @@ if(portalId){
     const scRate=r.length?r.reduce((p,c)=>p+c,0)/r.length/5:0;
     const pct=(sesSince.length||r.length)?Math.round((scRate*0.7+attRate*0.3)*100):(Number(d.pct)||0);
     const attTotal=attList.length?Math.round(attList.filter(x=>x.hadir).length/attList.length*100):0;
-    const payCur=payList.find(x=>x.id===ymNow);
-    const isLunas=!!(payCur&&(payCur.lunas||(payCur.ids&&payCur.ids[d.id])));
+    const isLunas=isStudentPaidForMonth(payList,ymNow,[sid,d.id,data.id,portalId]);
     const recentAtt=[...attList].sort((a,b)=>String(a.id||"")<String(b.id||"")?1:-1).slice(0,8);
     const recentEv=[...evList].sort((a,b)=>String(a.date||a.id||"")<String(b.date||b.id||"")?1:-1);
     const avField=fDef=>{const v=recentEv.map(x=>readEvalFieldScore(x,fDef)).filter(n=>n!==null);return v.length?(v.reduce((p,c)=>p+c,0)/v.length).toFixed(1):"–"};
@@ -245,8 +253,7 @@ if(portalId){
     }
   });
   document.addEventListener("change",e=>{if(e.target.id==="portalCoachSel"){portalCoachId=e.target.value;portalEvalDoneMsg="";renderParentPortal();}});
-  $("#app").innerHTML=`<div class="sec"><h2>${T("Memuat Portal Orang Tua...","Loading Parent Portal...")}</h2><p class="mu">${T("Mohon tunggu sebentar.","Please wait a moment.")}</p></div>`;
-  (async()=>{
+  async function loadParentPortal(isInitial){
     let pRes=null,pStatus=0;
     try{
       const r=await fetch("/api/portal?id="+encodeURIComponent(portalId),{cache:"no-store"});
@@ -254,38 +261,47 @@ if(portalId){
       if(r.ok)pRes=await r.json();
     }catch(e){}
     const cBundle=await fetch("/api/coach",{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null);
-    pubCoachBundle=cBundle;
-    if(!pRes&&cBundle&&Array.isArray(cBundle.students)){
+    if(cBundle)pubCoachBundle=cBundle;
+    if(cBundle&&Array.isArray(cBundle.students)){
       const targetLow=portalId.toLowerCase();
       const targetSlug=slug(portalId);
       const matched=cBundle.students.find(s=>String(s.id||"")===portalId)
         ||cBundle.students.find(s=>String(s.id||"").toLowerCase()===targetLow)
         ||cBundle.students.find(s=>slug(s.n||"")===targetSlug);
       if(matched){
-        if(matched.id&&matched.id!==portalId){
+        if((!pRes||!Array.isArray(pRes.payments)||!pRes.payments.length)&&matched.id&&matched.id!==portalId){
           try{
             const r2=await fetch("/api/portal?id="+encodeURIComponent(matched.id),{cache:"no-store"});
             if(r2.ok)pRes=await r2.json();
           }catch(e){}
         }
+        if(pRes&&pRes.student&&!pRes.student.id)pRes.student.id=matched.id;
         if(!pRes){
           const sid=matched.id;
           const mappedEvs=(cBundle.evaluations||[]).filter(x=>!isParentCoachEvalDoc(x)&&x.ev&&x.ev[sid]).map(x=>({id:x.id,date:x.date||String(x.id||"").slice(0,10),coach:x.coach||"",...x.ev[sid]}));
-          pRes={student:matched,attendance:[],evaluations:mappedEvs,payments:[],classes:cBundle.classes||[],siblings:[]};
+          pRes={id:sid,student:matched,attendance:[],evaluations:mappedEvs,payments:Array.isArray(cBundle.payments)?cBundle.payments:[],classes:cBundle.classes||[],siblings:[]};
         }
       }
     }
+    if(pRes&&pRes.student&&!pRes.student.id)pRes.student.id=pRes.id||portalId;
     if(!pRes){
-      $("#app").innerHTML=`${langBarHtml()}<div class="sec"><h2>${T("Data Murid Tidak Ditemukan","Student Data Not Found")}</h2><p class="mu">${T("Pastikan tautan Portal Orang Tua yang Anda buka sudah benar dari Sabeum Shandy. Jika data murid baru saja diimpor ulang, minta tautan terbaru dari menu Murid / Laporan Murid.","Please make sure you opened the correct Parent Portal link from Sabeum Shandy. If student data was recently re-imported, request the updated link from the Students / Student Report menu.")}</p><p class="mu" style="font-size:13px">ID: <code>${esc(portalId)}</code>${pStatus?" (HTTP "+pStatus+")":""}</p><p style="margin-top:14px"><button class="btn" onclick="location.reload()">🔄 ${T("Coba Muat Ulang","Retry")}</button></p></div>`;
+      if(isInitial){
+        $("#app").innerHTML=`${langBarHtml()}<div class="sec"><h2>${T("Data Murid Tidak Ditemukan","Student Data Not Found")}</h2><p class="mu">${T("Pastikan tautan Portal Orang Tua yang Anda buka sudah benar dari Sabeum Shandy. Jika data murid baru saja diimpor ulang, minta tautan terbaru dari menu Murid / Laporan Murid.","Please make sure you opened the correct Parent Portal link from Sabeum Shandy. If student data was recently re-imported, request the updated link from the Students / Student Report menu.")}</p><p class="mu" style="font-size:13px">ID: <code>${esc(portalId)}</code>${pStatus?" (HTTP "+pStatus+")":""}</p><p style="margin-top:14px"><button class="btn" onclick="location.reload()">🔄 ${T("Coba Muat Ulang","Retry")}</button></p></div>`;
+      }
       return;
     }
     portalData=pRes;
-    try{
-      renderParentPortal();
-    }catch(err){
-      $("#app").innerHTML=`${langBarHtml()}<div class="sec"><h2>${T("Terjadi Kendala Menampilkan Portal","Error Displaying Portal")}</h2><p class="mu">${esc(err.message||"Render error")}</p><p style="margin-top:14px"><button class="btn" onclick="location.reload()">🔄 ${T("Muat Ulang Halaman","Reload Page")}</button></p></div>`;
+    if(!document.activeElement?.closest?.("#app input,#app textarea,#app select")){
+      try{
+        renderParentPortal();
+      }catch(err){
+        if(isInitial)$("#app").innerHTML=`${langBarHtml()}<div class="sec"><h2>${T("Terjadi Kendala Menampilkan Portal","Error Displaying Portal")}</h2><p class="mu">${esc(err.message||"Render error")}</p><p style="margin-top:14px"><button class="btn" onclick="location.reload()">🔄 ${T("Muat Ulang Halaman","Reload Page")}</button></p></div>`;
+      }
     }
-  })();
+  }
+  $("#app").innerHTML=`<div class="sec"><h2>${T("Memuat Portal Orang Tua...","Loading Parent Portal...")}</h2><p class="mu">${T("Mohon tunggu sebentar.","Please wait a moment.")}</p></div>`;
+  loadParentPortal(true);
+  setInterval(()=>loadParentPortal(false),15000);
 } else if(coachProfileId){
   document.body.classList.add("standalone-portal");
   let pubData=null,selectedCoachId=coachProfileId,evalSubmittedMsg="";
