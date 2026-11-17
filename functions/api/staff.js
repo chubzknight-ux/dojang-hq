@@ -36,10 +36,46 @@ async function hmacKey(env) {
   return crypto.subtle.importKey("raw", enc.encode("dojang-staff-v1|" + env.ANALYZE_PIN), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
 }
 
-async function isOwner(request, env) {
+export async function isOwner(request, env) {
   const pin = request.headers.get("X-Dojang-Pin") || "";
   if (!env.ANALYZE_PIN || !pin) return false;
   return same(await sha(pin), await sha(env.ANALYZE_PIN));
+}
+
+export const slugName = s => String(s || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "item";
+const validSid = id => /^[A-Za-z0-9_-]{1,120}$/.test(id);
+const permOf = u => ({ absen: !!(u && u.perm && u.perm.absen), nilai: !!(u && u.perm && u.perm.nilai) });
+
+// Validasi lembar penilaian milik pelatih (dipakai juga oleh coach.js)
+export function cleanEvalDoc(user, id, d) {
+  if (!permOf(user).nilai) return { error: "Akun ini belum diberi izin mengisi penilaian.", status: 403 };
+  if (!d || typeof d !== "object" || Array.isArray(d) || !d.ev || typeof d.ev !== "object" || Array.isArray(d.ev))
+    return { error: "Data penilaian tidak valid.", status: 400 };
+  if (JSON.stringify(d).length > 200000) return { error: "Data terlalu besar.", status: 413 };
+  const m = /^(\d{4}-\d{2}-\d{2})__([A-Za-z0-9_-]{1,80})$/.exec(String(id || ""));
+  if (!m || m[2] !== slugName(user.name)) return { error: "Anda hanya boleh mengisi lembar penilaian atas nama Anda sendiri.", status: 403 };
+  const ev = {};
+  for (const [sid, row] of Object.entries(d.ev)) {
+    if (!validSid(sid) || !row || typeof row !== "object" || Array.isArray(row)) continue;
+    const o = {};
+    for (const [k, v] of Object.entries(row)) {
+      if (k === "n") o.n = clip(v, 600);
+      else if (/^[a-z]{1,12}$/.test(k) && v !== "" && v != null) { const x = Number(v); if (x >= 1 && x <= 5) o[k] = Math.round(x); }
+    }
+    ev[sid] = o;
+  }
+  return { clean: { date: m[1], coach: user.name, updatedAt: clip(d.updatedAt, 20), ev } };
+}
+
+function cleanAttendance(user, id, d) {
+  if (!permOf(user).absen) return { error: "Akun ini belum diberi izin mengisi absensi.", status: 403 };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(id || ""))) return { error: "Tanggal absensi tidak valid.", status: 400 };
+  if (!d || typeof d !== "object" || !d.ids || typeof d.ids !== "object" || Array.isArray(d.ids)) return { error: "Data absensi tidak valid.", status: 400 };
+  const keys = Object.keys(d.ids);
+  if (keys.length > 3000) return { error: "Data terlalu besar.", status: 413 };
+  const ids = {};
+  for (const k of keys) if (validSid(k)) ids[k] = !!d.ids[k];
+  return { clean: { date: id, ids } };
 }
 
 const validUser = u => /^[a-z0-9._-]{3,30}$/.test(u);
@@ -58,7 +94,7 @@ async function makeToken(env, u) {
   const sig = new Uint8Array(await crypto.subtle.sign("HMAC", await hmacKey(env), enc.encode(payload)));
   return payload + "." + toB64u(sig);
 }
-async function userFromToken(request, env) {
+export async function userFromToken(request, env) {
   const t = request.headers.get("X-Dojang-Token") || "";
   const i = t.indexOf(".");
   if (i < 1 || !env.ANALYZE_PIN) return null;
@@ -104,7 +140,7 @@ export async function onRequestGet({ request, env }) {
       out[r.coll].push({ id: r.id, ...d });
     }
   }
-  return J({ user: { name: u.name, username: u.username, role: "pelatih" }, ...out });
+  return J({ user: { name: u.name, username: u.username, role: "pelatih", perm: permOf(u) }, ...out });
 }
 
 // ===== POST: login (publik) + kelola akun (hanya Super Admin) =====
@@ -135,7 +171,21 @@ export async function onRequestPost({ request, env }) {
     if (!u.active) return J({ error: "Akun ini dinonaktifkan. Hubungi admin." }, 403);
     u.fails = 0; u.lockUntil = 0; u.lastLogin = new Date().toISOString();
     await putUser(env, username, u);
-    return J({ token: await makeToken(env, u), user: { name: u.name, username: u.username, role: "pelatih" } });
+    return J({ token: await makeToken(env, u), user: { name: u.name, username: u.username, role: "pelatih", perm: permOf(u) } });
+  }
+
+  // ---- pelatih menyimpan absensi / penilaian (sesuai izin akunnya) ----
+  if (body.action === "write") {
+    const user = await userFromToken(request, env);
+    if (!user) return J({ error: "unauthorized" }, 401);
+    const id = clip(body.id, 140);
+    let r;
+    if (body.coll === "attendance") r = cleanAttendance(user, id, body.data);
+    else if (body.coll === "evaluations") r = cleanEvalDoc(user, id, body.data);
+    else return J({ error: "Akun pelatih tidak boleh mengubah data ini." }, 403);
+    if (r.error) return J({ error: r.error }, r.status || 400);
+    await env.DB.prepare("INSERT OR REPLACE INTO docs(coll,id,data) VALUES(?,?,?)").bind(body.coll, id, JSON.stringify(r.clean)).run();
+    return J({ ok: true });
   }
 
   // ---- semua aksi di bawah ini khusus Super Admin ----
@@ -146,7 +196,7 @@ export async function onRequestPost({ request, env }) {
     const rs = await env.DB.prepare("SELECT id,data FROM docs WHERE coll='staff'").all();
     const users = rs.results.map(r => {
       const d = JSON.parse(r.data);
-      return { username: r.id, name: d.name, active: !!d.active, lastLogin: d.lastLogin || "", createdAt: d.createdAt || "" };
+      return { username: r.id, name: d.name, active: !!d.active, perm: permOf(d), lastLogin: d.lastLogin || "", createdAt: d.createdAt || "" };
     }).sort((a, b) => a.name.localeCompare(b.name));
     return J({ users });
   }
@@ -164,6 +214,8 @@ export async function onRequestPost({ request, env }) {
 
     const u = old || { username, role: "pelatih", active: true, createdAt: new Date().toISOString() };
     u.name = name;
+    if (body.perm && typeof body.perm === "object") u.perm = { absen: !!body.perm.absen, nilai: !!body.perm.nilai };
+    if (!u.perm) u.perm = { absen: false, nilai: false };
     if (password) {
       const salt = rand(16);
       u.salt = toB64(salt);
