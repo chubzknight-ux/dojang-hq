@@ -1,4 +1,4 @@
-import { userFromToken, isOwner, cleanEvalDoc, jsonEtag } from "./staff.js";
+import { userFromToken, isOwner, cleanEvalDoc, jsonEtag, unitScope, scopeOf, audit } from "./staff.js";
 
 const J=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}});
 const validId=id=>/^[A-Za-z0-9_-]{1,120}$/.test(id);
@@ -18,20 +18,30 @@ export async function onRequestGet({env,request}){
   const rs=await env.DB.prepare("SELECT coll,id,data FROM docs WHERE coll IN ('students','evaluations','classes','coaches','units','settings') ORDER BY coll,id").all();
   const students=[],evaluations=[],classes=[],coaches=[],units=[];
   let logo=null;
-  for(const r of rs.results){
-    let d;try{d=JSON.parse(r.data);}catch(e){continue;}
-    if(r.coll==="students"){if(user&&!d.cuti)students.push({id:r.id,n:d.n,a:d.a,bi:d.bi,v:d.v,unit:d.unit||"Terazza"});}
-    else if(r.coll==="evaluations"){if(user||isCoachEval(r.id,d))evaluations.push({id:r.id,...d});}
-    else if(r.coll==="classes")classes.push({id:r.id,unit:d.unit||"Terazza",...d});
+  const rows=[];
+  for(const r of rs.results){try{rows.push({coll:r.coll,id:r.id,d:JSON.parse(r.data)});}catch(e){}}
+  const scope=user?unitScope(user,rows.filter(r=>r.coll==="students").map(r=>({id:r.id,data:r.d}))):null;
+  const uk=x=>String(x==null?"":x).trim().toLowerCase();
+  for(const {coll,id,d} of rows){
+    const r={coll,id};
+    if(r.coll==="students"){if(user&&!d.cuti&&(!scope||scope.ids.has(r.id)))students.push({id:r.id,n:d.n,a:d.a,bi:d.bi,v:d.v,unit:d.unit||"Terazza"});}
+    else if(r.coll==="evaluations"){
+      if(user){
+        if(isCoachEval(r.id,d))continue;
+        if(scope){const ev={};for(const k of Object.keys(d.ev||{}))if(scope.ids.has(k))ev[k]=d.ev[k];if(!Object.keys(ev).length)continue;d.ev=ev;}
+        evaluations.push({id:r.id,...d});
+      }else if(isCoachEval(r.id,d))evaluations.push({id:r.id,...d});
+    }
+    else if(r.coll==="classes"){if(!scope||scope.units.has(uk(d.unit||"Terazza")))classes.push({id:r.id,unit:d.unit||"Terazza",...d});}
     else if(r.coll==="coaches")coaches.push({id:r.id,...d});
-    else if(r.coll==="units")units.push({id:r.id,...d});
+    else if(r.coll==="units"){if(!scope||scope.units.has(uk(d.name||r.id)))units.push({id:r.id,...d});}
     else if(r.coll==="settings"&&r.id==="logo")logo=typeof d.data==="string"?d.data:"";
   }
   const noLogo=new URL(request.url).searchParams.get("nologo")==="1";   // polling: logo tidak perlu diunduh ulang
   const out={students,evaluations,classes,coaches,units};
   if(!noLogo)out.logo=logo;
   if(user){
-    out.user={name:user.name,username:user.username,perm:{absen:!!(user.perm&&user.perm.absen),nilai:!!(user.perm&&user.perm.nilai)},mustChange:!!user.mustChange};
+    out.user={name:user.name,username:user.username,perm:{absen:!!(user.perm&&user.perm.absen),nilai:!!(user.perm&&user.perm.nilai)},units:Array.isArray(user.units)?user.units:[],mustChange:!!user.mustChange};
     return jsonEtag(request,out);
   }
   return J(out);
@@ -70,9 +80,10 @@ export async function onRequestPost({env,request}){
       // penilaian murid: wajib login pelatih yang punya izin, hanya atas nama sendiri
       const user=await userFromToken(request,env);
       if(!user)return J({error:"Silakan masuk dengan akun pelatih."},401);
-      const r=cleanEvalDoc(user,id,d);
+      const r=cleanEvalDoc(user,id,d,await scopeOf(env,user));
       if(r.error)return J({error:r.error},r.status||400);
       clean=r.clean;
+      await audit(env,user.name,"pelatih","penilaian",{id,n:Object.keys(clean.ev).length});
     }
     await env.DB.prepare("INSERT OR REPLACE INTO docs(coll,id,data) VALUES('evaluations',?,?)")
       .bind(id,JSON.stringify(clean)).run();
