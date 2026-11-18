@@ -47,7 +47,7 @@ const validSid = id => /^[A-Za-z0-9_-]{1,120}$/.test(id);
 const permOf = u => ({ absen: !!(u && u.perm && u.perm.absen), nilai: !!(u && u.perm && u.perm.nilai) });
 
 // Validasi lembar penilaian milik pelatih (dipakai juga oleh coach.js)
-export function cleanEvalDoc(user, id, d) {
+export function cleanEvalDoc(user, id, d, scope) {
   if (!permOf(user).nilai) return { error: "Akun ini belum diberi izin mengisi penilaian.", status: 403 };
   if (!d || typeof d !== "object" || Array.isArray(d) || !d.ev || typeof d.ev !== "object" || Array.isArray(d.ev))
     return { error: "Data penilaian tidak valid.", status: 400 };
@@ -57,6 +57,7 @@ export function cleanEvalDoc(user, id, d) {
   const ev = {};
   for (const [sid, row] of Object.entries(d.ev)) {
     if (!validSid(sid) || !row || typeof row !== "object" || Array.isArray(row)) continue;
+    if (scope && !scope.ids.has(sid)) continue;           // murid di luar unit akun ini diabaikan
     const o = {};
     for (const [k, v] of Object.entries(row)) {
       if (k === "n") o.n = clip(v, 600);
@@ -64,18 +65,53 @@ export function cleanEvalDoc(user, id, d) {
     }
     ev[sid] = o;
   }
+  if (scope && !Object.keys(ev).length && Object.keys(d.ev).length) return { error: "Murid tersebut di luar unit yang boleh Anda akses.", status: 403 };
   return { clean: { date: m[1], coach: user.name, updatedAt: clip(d.updatedAt, 20), ev } };
 }
 
-function cleanAttendance(user, id, d) {
+function cleanAttendance(user, id, d, scope) {
   if (!permOf(user).absen) return { error: "Akun ini belum diberi izin mengisi absensi.", status: 403 };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(id || ""))) return { error: "Tanggal absensi tidak valid.", status: 400 };
   if (!d || typeof d !== "object" || !d.ids || typeof d.ids !== "object" || Array.isArray(d.ids)) return { error: "Data absensi tidak valid.", status: 400 };
   const keys = Object.keys(d.ids);
   if (keys.length > 3000) return { error: "Data terlalu besar.", status: 413 };
   const ids = {};
-  for (const k of keys) if (validSid(k)) ids[k] = !!d.ids[k];
+  for (const k of keys) if (validSid(k) && (!scope || scope.ids.has(k))) ids[k] = !!d.ids[k];
+  if (scope && keys.length && !Object.keys(ids).length) return { error: "Murid tersebut di luar unit yang boleh Anda akses.", status: 403 };
   return { clean: { date: id, ids } };
+}
+
+// ===== Pembatasan unit: akun bisa dibatasi ke unit tertentu (kosong = semua unit) =====
+const unitKey = s => String(s == null ? "" : s).trim().toLowerCase();
+export function unitScope(user, studentRows) {
+  const us = (user && Array.isArray(user.units) ? user.units : []).map(unitKey).filter(Boolean);
+  if (!us.length) return null;
+  const units = new Set(us), ids = new Set();
+  for (const r of studentRows) if (units.has(unitKey((r.data && r.data.unit) || "Terazza"))) ids.add(r.id);
+  return { units, ids };
+}
+export async function scopeOf(env, user) {
+  if (!user || !Array.isArray(user.units) || !user.units.length) return null;
+  const rs = await env.DB.prepare("SELECT id,data FROM docs WHERE coll='students'").all();
+  return unitScope(user, rs.results.map(r => { let d = {}; try { d = JSON.parse(r.data); } catch (e) {} return { id: r.id, data: d }; }));
+}
+
+// ===== Riwayat aktivitas (tabel terpisah, tidak ikut terunduh di /api/all) =====
+let auditReady = false;
+async function auditEnsure(env) {
+  if (auditReady) return;
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS audit_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t TEXT NOT NULL,who TEXT,role TEXT,action TEXT,detail TEXT)").run();
+  auditReady = true;
+}
+export async function audit(env, who, role, action, detail) {
+  try {
+    await auditEnsure(env);
+    await env.DB.prepare("INSERT INTO audit_log(t,who,role,action,detail) VALUES(?,?,?,?,?)")
+      .bind(new Date().toISOString(), clip(who, 80), role, action, JSON.stringify(detail || {}).slice(0, 1500)).run();
+    if (Math.random() < 0.04) {      // sesekali bersihkan catatan lebih dari 90 hari
+      await env.DB.prepare("DELETE FROM audit_log WHERE t < ?").bind(new Date(Date.now() - 90 * 864e5).toISOString()).run();
+    }
+  } catch (e) { /* mencatat tidak boleh mengganggu pekerjaan utama */ }
 }
 
 const validUser = u => /^[a-z0-9._-]{3,30}$/.test(u);
@@ -149,28 +185,47 @@ export async function onRequestGet({ request, env }) {
     "SELECT coll,id,data FROM docs WHERE coll IN ('students','attendance','evaluations','classes','coaches','units') ORDER BY coll,id"
   ).all();
 
+  const rows = [];
+  for (const r of rs.results) { try { rows.push({ coll: r.coll, id: r.id, d: JSON.parse(r.data) }); } catch (e) { /* lewati baris rusak */ } }
+  const scope = unitScope(u, rows.filter(r => r.coll === "students").map(r => ({ id: r.id, data: r.d })));
+
   const out = { students: [], attendance: [], evaluations: [], classes: [], coaches: [], units: [] };
-  for (const r of rs.results) {
-    let d;
-    try { d = JSON.parse(r.data); } catch (e) { continue; }
-    if (r.coll === "students") {
+  for (const { coll, id, d } of rows) {
+    if (coll === "students") {
+      if (scope && !scope.ids.has(id)) continue;
       delete d.wa; delete d.fee;
-      out.students.push({ id: r.id, ...d });
-    } else if (r.coll === "evaluations") {
+      out.students.push({ id, ...d });
+    } else if (coll === "attendance") {
+      if (scope) {
+        const ids = {};
+        for (const k of Object.keys(d.ids || {})) if (scope.ids.has(k)) ids[k] = d.ids[k];
+        if (!Object.keys(ids).length) continue;
+        d.ids = ids;
+      }
+      out.attendance.push({ id, ...d });
+    } else if (coll === "evaluations") {
       // ulasan orang tua untuk pelatih tidak ditampilkan ke pelatih
-      if (d.type === "coach_eval" || String(r.id).startsWith("coach_eval__")) continue;
-      out.evaluations.push({ id: r.id, ...d });
-    } else if (r.coll === "units") {
+      if (d.type === "coach_eval" || String(id).startsWith("coach_eval__")) continue;
+      if (scope) {
+        const ev = {};
+        for (const k of Object.keys(d.ev || {})) if (scope.ids.has(k)) ev[k] = d.ev[k];
+        if (!Object.keys(ev).length) continue;
+        d.ev = ev;
+      }
+      out.evaluations.push({ id, ...d });
+    } else if (coll === "classes") {
+      if (scope && !scope.units.has(unitKey(d.unit || "Terazza"))) continue;
+      out.classes.push({ id, ...d });
+    } else if (coll === "units") {
+      if (scope && !scope.units.has(unitKey(d.name || id))) continue;
       delete d.fee;
-      out.units.push({ id: r.id, ...d });
-    } else if (r.coll === "coaches") {
+      out.units.push({ id, ...d });
+    } else if (coll === "coaches") {
       delete d.wa; delete d.ratingSummary;
-      out.coaches.push({ id: r.id, ...d });
-    } else if (out[r.coll]) {
-      out[r.coll].push({ id: r.id, ...d });
+      out.coaches.push({ id, ...d });
     }
   }
-  return jsonEtag(request, { user: { name: u.name, username: u.username, role: "pelatih", perm: permOf(u), mustChange: !!u.mustChange }, ...out });
+  return jsonEtag(request, { user: { name: u.name, username: u.username, role: "pelatih", perm: permOf(u), units: Array.isArray(u.units) ? u.units : [], mustChange: !!u.mustChange }, ...out });
 }
 
 // ===== POST: login (publik) + kelola akun (hanya Super Admin) =====
@@ -203,6 +258,7 @@ export async function onRequestPost({ request, env }) {
     if (!u.active) return J({ error: "Akun ini dinonaktifkan. Hubungi admin." }, 403);
     u.fails = 0; u.lockUntil = 0; u.lastLogin = new Date().toISOString();
     await putUser(env, username, u);
+    await audit(env, u.name, "pelatih", "login", {});
     return J({ token: await makeToken(env, u), user: { name: u.name, username: u.username, role: "pelatih", perm: permOf(u) }, mustChange: !!u.mustChange });
   }
 
@@ -226,6 +282,7 @@ export async function onRequestPost({ request, env }) {
     user.pv = toB64u(rand(9));         // sesi di perangkat lain otomatis keluar
     user.fails = 0; user.lockUntil = 0; user.mustChange = false; user.updatedAt = new Date().toISOString();
     await putUser(env, user.username, user);
+    await audit(env, user.name, "pelatih", "ganti_sandi", {});
     return J({ ok: true, token: await makeToken(env, user) });
   }
 
@@ -235,18 +292,21 @@ export async function onRequestPost({ request, env }) {
     if (!user) return J({ error: "unauthorized" }, 401);
     const id = clip(body.id, 140);
     let r;
+    const scope = await scopeOf(env, user);
     if (body.coll === "attendance") {
-      r = cleanAttendance(user, id, body.data);
+      r = cleanAttendance(user, id, body.data, scope);
       if (r.clean && body.patch === true) {            // gabungkan hanya yang berubah, supaya tidak menimpa centang pelatih lain
         const old = await env.DB.prepare("SELECT data FROM docs WHERE coll='attendance' AND id=?").bind(id).first();
         const oldIds = old ? (JSON.parse(old.data).ids || {}) : {};
         r.clean.ids = { ...oldIds, ...r.clean.ids };
       }
     }
-    else if (body.coll === "evaluations") r = cleanEvalDoc(user, id, body.data);
+    else if (body.coll === "evaluations") r = cleanEvalDoc(user, id, body.data, scope);
     else return J({ error: "Akun pelatih tidak boleh mengubah data ini." }, 403);
     if (r.error) return J({ error: r.error }, r.status || 400);
     await env.DB.prepare("INSERT OR REPLACE INTO docs(coll,id,data) VALUES(?,?,?)").bind(body.coll, id, JSON.stringify(r.clean)).run();
+    if (body.coll === "attendance") await audit(env, user.name, "pelatih", "absensi", { id, set: body.patch === true ? body.data.ids : undefined });
+    else await audit(env, user.name, "pelatih", "penilaian", { id, n: Object.keys(r.clean.ev).length });
     return J({ ok: true });
   }
 
@@ -259,7 +319,7 @@ export async function onRequestPost({ request, env }) {
     const rs = await env.DB.prepare("SELECT id,data FROM docs WHERE coll='staff'").all();
     const users = rs.results.map(r => {
       const d = JSON.parse(r.data);
-      return { username: r.id, name: d.name, active: !!d.active, perm: permOf(d), lastLogin: d.lastLogin || "", createdAt: d.createdAt || "" };
+      return { username: r.id, name: d.name, active: !!d.active, perm: permOf(d), units: Array.isArray(d.units) ? d.units : [], lastLogin: d.lastLogin || "", createdAt: d.createdAt || "" };
     }).sort((a, b) => a.name.localeCompare(b.name));
     return J({ users });
   }
@@ -279,6 +339,8 @@ export async function onRequestPost({ request, env }) {
     u.name = name;
     if (body.perm && typeof body.perm === "object") u.perm = { absen: !!body.perm.absen, nilai: !!body.perm.nilai };
     if (!u.perm) u.perm = { absen: false, nilai: false };
+    if (Array.isArray(body.units)) u.units = [...new Set(body.units.map(x => clip(x, 40).trim()).filter(Boolean))].slice(0, 10);
+    if (!Array.isArray(u.units)) u.units = [];
     if (password) {
       const salt = rand(16);
       u.salt = toB64(salt);
@@ -289,7 +351,15 @@ export async function onRequestPost({ request, env }) {
     }
     u.updatedAt = new Date().toISOString();
     await putUser(env, username, u);
+    await audit(env, "Super Admin", "owner", "akun_simpan", { username, created: !old, perm: u.perm, units: u.units, sandi: !!password });
     return J({ ok: true, created: !old });
+  }
+
+  if (body.action === "audit") {
+    await auditEnsure(env);
+    const lim = Math.min(Math.max(parseInt(body.limit, 10) || 100, 1), 300);
+    const rs = await env.DB.prepare("SELECT id,t,who,role,action,detail FROM audit_log ORDER BY id DESC LIMIT ?").bind(lim).all();
+    return J({ rows: rs.results.map(r => { let d = {}; try { d = JSON.parse(r.detail); } catch (e) {} return { id: r.id, t: r.t, who: r.who, role: r.role, action: r.action, detail: d }; }) });
   }
 
   if (body.action === "bulk_create") {
@@ -325,6 +395,7 @@ export async function onRequestPost({ request, env }) {
       have.add(slugName(name));
       created.push({ name, username, password });
     }
+    await audit(env, "Super Admin", "owner", "akun_massal", { count: created.length });
     return J({ ok: true, created, skipped });
   }
 
@@ -335,6 +406,7 @@ export async function onRequestPost({ request, env }) {
     u.active = !!body.active;
     u.pv = toB64u(rand(9));            // putus sesi yang sedang berjalan
     await putUser(env, username, u);
+    await audit(env, "Super Admin", "owner", "akun_aktif", { username, active: u.active });
     return J({ ok: true });
   }
 
@@ -342,6 +414,7 @@ export async function onRequestPost({ request, env }) {
     const username = clip(body.username, 40).trim().toLowerCase();
     if (!validUser(username)) return J({ error: "Nama pengguna tidak valid." }, 400);
     await env.DB.prepare("DELETE FROM docs WHERE coll='staff' AND id=?").bind(username).run();
+    await audit(env, "Super Admin", "owner", "akun_hapus", { username });
     return J({ ok: true });
   }
 
