@@ -1,4 +1,4 @@
-import { adminGuard, adminPinOf } from "./staff.js";
+import { adminGuard, adminPinOf, jsonEtag } from "./staff.js";
 const J=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}});
 // Koleksi akun & pembatas percobaan tidak pernah dikirim ke browser (berisi hash kata sandi).
 const HIDDEN=new Set(["staff","staff_rl"]);
@@ -12,5 +12,5 @@ export async function onRequestGet({env,request}){
     (out[r.coll]=out[r.coll]||[]).push({id:r.id,...JSON.parse(r.data)});
   }
   out._pendingStaff=pending;
-  return J(out);
+  return jsonEtag(request,out);   // 304 bila tidak ada perubahan: browser tidak mengunduh ulang
 }

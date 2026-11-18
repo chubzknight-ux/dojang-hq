@@ -75,8 +75,13 @@ export async function onRequestGet({ request, env }) {
         .map(s => ({ id: s.id, n: s.n, unit: s.unit || "Terazza" }))
     : [];
 
+  // hanya data yang ditampilkan di portal orang tua (tanpa nomor WA & data internal lain)
+  const SHOW = ["id","n","a","bi","v","unit","gender","ortu","fee","cuti","cutiKet","cutiTgl","sejak","sk","siap","pct","note"];
+  const studentOut = {};
+  for (const k of SHOW) if (st[k] !== undefined) studentOut[k] = st[k];
+
   return Response.json({
-    student: st,
+    student: studentOut,
     siblings,
     attendance: attendance.map(a => ({ id: a.id, hadir: hasId(a.ids) })),
     payments: normalizedPayments,

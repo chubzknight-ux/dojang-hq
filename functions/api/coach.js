@@ -1,9 +1,17 @@
-import { userFromToken, isOwner, cleanEvalDoc, jsonEtag, unitScope, scopeOf, audit } from "./staff.js";
+import { userFromToken, isOwner, cleanEvalDoc, jsonEtag, unitScope, scopeOf, audit, hitLimit } from "./staff.js";
 
 const J=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}});
 const validId=id=>/^[A-Za-z0-9_-]{1,120}$/.test(id);
 const clip=(s,n)=>String(s==null?"":s).slice(0,n);
 const isCoachEval=(id,d)=>(d&&d.type==="coach_eval")||String(id).startsWith("coach_eval__");
+// Ulasan untuk publik: hanya nilai & komentar. Tanpa ID dokumen (ID lama memuat ID murid = kunci portal orang tua),
+// tanpa nama orang tua dan tanpa nama murid.
+const publicReview=d=>({type:"coach_eval",targetCoachId:clip(d.targetCoachId,80),targetCoachName:clip(d.targetCoachName,120),date:clip(d.date,10),updatedAt:clip(d.updatedAt,20),ratings:d.ratings&&typeof d.ratings==="object"?d.ratings:{},comment:clip(d.comment,1500)});
+const hex=u8=>Array.from(u8,b=>b.toString(16).padStart(2,"0")).join("");
+async function reviewId(coachId,date,key){
+  const h=new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode("dojang-review|"+key)));
+  return "coach_eval__"+coachId+"__"+date+"__"+hex(h.slice(0,10));
+}
 
 // GET
 // - Tanpa login (halaman orang tua, layar login): hanya logo, profil pelatih, jadwal, dan ulasan orang tua.
@@ -30,7 +38,7 @@ export async function onRequestGet({env,request}){
         if(isCoachEval(r.id,d))continue;
         if(scope){const ev={};for(const k of Object.keys(d.ev||{}))if(scope.ids.has(k))ev[k]=d.ev[k];if(!Object.keys(ev).length)continue;d.ev=ev;}
         evaluations.push({id:r.id,...d});
-      }else if(isCoachEval(r.id,d))evaluations.push({id:r.id,...d});
+      }else if(isCoachEval(r.id,d))evaluations.push(publicReview(d));
     }
     else if(r.coll==="classes"){if(!scope||scope.units.has(uk(d.unit||"Terazza")))classes.push({id:r.id,unit:d.unit||"Terazza",...d});}
     else if(r.coll==="coaches")coaches.push({id:r.id,...d});
@@ -66,16 +74,28 @@ export async function onRequestPost({env,request}){
   if(body.action==="save_eval"){
     const id=String(body.id||"").trim();
     const d=body.data;
-    if(!validId(id)||!d||typeof d!=="object"||Array.isArray(d))return J({error:"invalid eval"},400);
+    if(!d||typeof d!=="object"||Array.isArray(d)||(d.type!=="coach_eval"&&!validId(id)))return J({error:"invalid eval"},400);
     if(JSON.stringify(d).length>200000)return J({error:"too large"},413);
     let clean;
     if(d.type==="coach_eval"){
-      // ulasan orang tua untuk pelatih: tetap terbuka untuk orang tua (tanpa login)
-      if(!id.startsWith("coach_eval__"))return J({error:"invalid eval id"},400);
+      // Ulasan orang tua untuk pelatih (tanpa login).
+      // - ID dokumen dibuat server dari "kunci" milik pengirim (ID portal murid atau token acak perangkat),
+      //   jadi hanya pengirim yang sama yang bisa memperbarui ulasannya sendiri pada hari yang sama;
+      //   ulasan orang lain tidak bisa ditimpa.
+      // - Dibatasi 10 ulasan per jaringan per jam.
+      const key=String(body.key||"").trim();
+      if(!/^[A-Za-z0-9_-]{7,120}$/.test(key))return J({error:"Muat ulang halaman lalu kirim lagi."},400);
+      const cid=clip(d.targetCoachId,80);
+      if(!validId(cid))return J({error:"invalid coach"},400);
+      if(!(await hitLimit(env,request,"rv",10,60*60000)))return J({error:"Terlalu banyak ulasan dari jaringan ini. Coba lagi nanti."},429);
       const r=d.ratings&&typeof d.ratings==="object"?d.ratings:{};
       const rt={};
       for(const k of ["m","t","k","d","w"]){const v=Number(r[k]);rt[k]=v>=1&&v<=5?Math.round(v):5;}
-      clean={type:"coach_eval",coach:"",targetCoachId:clip(d.targetCoachId,80),targetCoachName:clip(d.targetCoachName,120),parentName:clip(d.parentName,120),studentName:clip(d.studentName,120),date:clip(d.date,10),updatedAt:clip(d.updatedAt,20),ratings:rt,comment:clip(d.comment,1500)};
+      const today=new Date(Date.now()+7*3600e3).toISOString().slice(0,10);   // tanggal WIB
+      const rid=await reviewId(cid,today,key);
+      clean={type:"coach_eval",coach:"",targetCoachId:cid,targetCoachName:clip(d.targetCoachName,120),parentName:clip(d.parentName,120),studentName:clip(d.studentName,120),date:today,updatedAt:clip(d.updatedAt,20),ratings:rt,comment:clip(d.comment,1500)};
+      await env.DB.prepare("INSERT OR REPLACE INTO docs(coll,id,data) VALUES('evaluations',?,?)").bind(rid,JSON.stringify(clean)).run();
+      return J({ok:true,id:rid});
     }else{
       // penilaian murid: wajib login pelatih yang punya izin, hanya atas nama sendiri
       const user=await userFromToken(request,env);
