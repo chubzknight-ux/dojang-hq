@@ -1902,6 +1902,34 @@ function anaFrames(file,n){return new Promise((resolve,reject)=>{
     finally{if(url)URL.revokeObjectURL(url);}
     if(myId===anaState.runId){anaState.busy=false;anaState.msg="";draw();}
   }
+  // Pelacakan beberapa orang antar-bagian video (koordinat 0..1). Jarak diukur relatif terhadap tinggi badan.
+  // Bila seseorang sempat tidak ditemukan, area pencarian diperlebar bertahap (sampai 3x setelah 4 bagian hilang),
+  // Selalu hanya menerima orang dengan tinggi badan serupa (0.6-1.6x rata-rata tinggi orang itu) agar tidak tertukar dengan orang lain/pelatih.
+  function anaTrack(dets,people,iSel){
+    const n=dets.length,GATE=0.9;
+    const tracks=people.map(p=>({n:p.n,st:p.st,cx:p.box.cx,cy:p.box.cy,h:p.box.h,href:p.box.h,miss:0,pts:new Array(n).fill(null)}));
+    const init=tracks.map(t=>({cx:t.cx,cy:t.cy,h:t.h,href:t.href}));
+    const step=i=>{
+      const ds=dets[i]||[],pairs=[];
+      tracks.forEach((t,ti)=>ds.forEach((d,di)=>{
+        const dist=Math.hypot(d.b.cx-t.cx,d.b.cy-t.cy)/Math.max(t.h,0.15),gate=GATE*(1+0.5*Math.min(t.miss,4));
+        if(dist>gate)return;
+        const r=d.b.h/Math.max(t.href,0.01);if(r<0.6||r>1.6)return;
+        pairs.push([dist,ti,di]);
+      }));
+      pairs.sort((a,b)=>a[0]-b[0]);
+      const ut=new Set(),ud=new Set();
+      for(const [,ti,di] of pairs){
+        if(ut.has(ti)||ud.has(di))continue;
+        ut.add(ti);ud.add(di);const t=tracks[ti],d=ds[di];t.pts[i]=d.pts;t.cx=d.b.cx;t.cy=d.b.cy;t.h=d.b.h;t.href=0.85*t.href+0.15*d.b.h;t.miss=0;
+      }
+      tracks.forEach((t,ti)=>{if(!ut.has(ti))t.miss++;});
+    };
+    for(let i=iSel;i<n;i++)step(i);
+    tracks.forEach((t,k)=>{t.cx=init[k].cx;t.cy=init[k].cy;t.h=init[k].h;t.href=init[k].href;t.miss=0;});
+    for(let i=iSel-1;i>=0;i--)step(i);
+    return tracks;
+  }
   async function poseAnalyzeMulti(file,mode,people,tr,progress){
     progress(T("Memuat model deteksi gerakan (sekali saja)...","Loading motion model (one time)..."));
     let lm=await loadPose(progress);
@@ -1914,7 +1942,7 @@ function anaFrames(file,n){return new Promise((resolve,reject)=>{
       const dur=v.duration;
       if(!isFinite(dur)||dur<2)throw new Error(T("Video terlalu pendek atau rusak","Video too short or broken"));
       const n=Math.min(120,Math.max(12,Math.round(dur*4)));
-      const sc=Math.min(1,480/Math.max(v.videoWidth,v.videoHeight)),w=Math.round(v.videoWidth*sc),h=Math.round(v.videoHeight*sc);
+      const sc=Math.min(1,640/Math.max(v.videoWidth,v.videoHeight)),w=Math.round(v.videoWidth*sc),h=Math.round(v.videoHeight*sc);
       const cv=document.createElement("canvas");cv.width=w;cv.height=h;const ctx=cv.getContext("2d"),dets=[];
       for(let i=0;i<n;i++){
         await new Promise(res=>{const tm=setTimeout(res,6000);v.onseeked=()=>{clearTimeout(tm);res()};v.currentTime=dur*(0.02+0.96*i/(n-1))});
@@ -1924,22 +1952,8 @@ function anaFrames(file,n){return new Promise((resolve,reject)=>{
         if(i%4===0)progress(T("Menganalisa gerakan ","Analyzing motion ")+Math.round(i/n*100)+"%");
       }
       // pelacakan: ikuti tiap orang yang diketuk dari titik pilihan ke depan dan ke belakang
-      const GATE=0.9,iSel=Math.max(0,Math.min(n-1,Math.round(tr*(n-1))));
-      const tracks=people.map(p=>({n:p.n,st:p.st,cx:p.box.cx,cy:p.box.cy,h:p.box.h,pts:new Array(n).fill(null)}));
-      const init=tracks.map(t=>({cx:t.cx,cy:t.cy,h:t.h}));
-      const step=i=>{
-        const ds=dets[i],pairs=[];
-        tracks.forEach((t,ti)=>ds.forEach((d,di)=>pairs.push([Math.hypot(d.b.cx-t.cx,d.b.cy-t.cy)/Math.max(t.h,0.15),ti,di])));
-        pairs.sort((a,b)=>a[0]-b[0]);
-        const ut=new Set(),ud=new Set();
-        for(const [dist,ti,di] of pairs){
-          if(dist>GATE)break;if(ut.has(ti)||ud.has(di))continue;
-          ut.add(ti);ud.add(di);const t=tracks[ti],d=ds[di];t.pts[i]=d.pts;t.cx=d.b.cx;t.cy=d.b.cy;t.h=d.b.h;
-        }
-      };
-      for(let i=iSel;i<n;i++)step(i);
-      tracks.forEach((t,k)=>{t.cx=init[k].cx;t.cy=init[k].cy;t.h=init[k].h});
-      for(let i=iSel-1;i>=0;i--)step(i);
+      const iSel=Math.max(0,Math.min(n-1,Math.round(tr*(n-1))));
+      const tracks=anaTrack(dets,people,iSel);
       // dua orang sering sangat berdekatan -> pelacakan bisa tertukar
       let close=0;
       if(tracks.length>1){for(let i=0;i<n;i++){const ps=dets[i];if(ps.length<2)continue;let c=false;for(let a=0;a<ps.length&&!c;a++)for(let b2=a+1;b2<ps.length;b2++){if(Math.hypot(ps[a].b.cx-ps[b2].b.cx,ps[a].b.cy-ps[b2].b.cy)/Math.max(ps[a].b.h,ps[b2].b.h,0.15)<0.5){c=true;break}}if(c)close++}}
