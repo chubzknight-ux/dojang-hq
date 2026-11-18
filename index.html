@@ -200,6 +200,192 @@ function coachNoteHtml(n){
   }).join("");
   return`<div class="cn-note"><div class="an-head"><span class="cn-tag">🥋 ${T("Catatan Pelatih","Coach's Note")}</span></div>${rows}</div>`;
 }
+// ===== Kalimat hasil Analisa Video (mesin di perangkat) =====
+// Berbasis aturan, tetapi: memakai nama & sabuk murid, 5 tingkat per ukuran, membandingkan dengan video sebelumnya,
+// beberapa variasi kalimat per keadaan (dipilih tetap per video), dan saran latihan sesuai Poomsae/Kyorugi & usia.
+const _anaLvl=(x,cuts)=>1+cuts.filter(c=>x>=c).length;
+function _anaSeed(an){const s=[an.nm,an.kicks,an.kh,an.knee,an.guard,an.kpm,an.cnt,an.m].join("|");let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+function _anaPick(an,slot,list){let h=(_anaSeed(an)^Math.imul(slot+1,0x9E3779B9))>>>0;h=Math.imul(h^(h>>>16),0x85ebca6b);h^=h>>>13;h=Math.imul(h,0xc2b2ae35);h^=h>>>16;return list[(h>>>0)%list.length];}
+const _ANA_MON_ID=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"],_ANA_MON_EN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const _anaDate=d=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(d||""));return m?(+m[3])+" "+(isEN()?_ANA_MON_EN:_ANA_MON_ID)[+m[2]-1]:"";};
+// set × repetisi dan lama tahan (detik) menurut usia
+const _anaReps=an=>{const a=Number(an.age)||0;return a&&a<=8?{s:2,r:8,t:15}:a&&a<=12?{s:3,r:10,t:20}:a?{s:3,r:15,t:30}:{s:3,r:10,t:20};};
+function anaDeviceText(an){
+  const L=(id,en)=>isEN()?en:id;
+  const nm=String(an.nm||"").trim(),R=_anaReps(an),kyo=an.m==="kyorugi";
+  const BLx=getBL(),belt=(an.bi!=null&&BLx[an.bi])?String(BLx[an.bi][0]).toLowerCase():"";
+  const o={N:nm||L("Murid","The student"),m:nm||L("murid","the student"),ms:nm?nm+"'s":"the student's",Ms:nm?nm+"'s":"The student's",
+    bs:belt?L(" untuk sabuk "+belt," for a "+belt+" belt"):"",s:R.s,r:R.r,t:R.t,pd:an.prev?_anaDate(an.prev.d):""};
+  const F=s=>s.replace(/\{(\w+)\}/g,(_,k)=>o[k]==null?"":String(o[k]));
+  const good=[],grow=[];               // [prioritas, teks]; angka kecil = ditampilkan lebih dulu
+  const say=(arr,pri,slot,variants)=>arr.push([pri,F(_anaPick(an,slot,variants))]);
+  const P=an.prev||null;
+
+  // ---- tendangan ----
+  if(an.kicks>0&&an.kh!=null){
+    o.h=kickLabel(an.kh);
+    const tier=an.bi!=null?_anaLvl(an.kh-(0.35+0.075*(Number(an.bi)||0)),[-0.35,-0.1,0.15,0.4]):_anaLvl(an.kh,[0.2,0.45,0.75,1.05]);
+    if(tier===5)say(good,2,1,[
+      L("{N} menendang {h} — jauh di atas target{bs}. Luar biasa!","{N} kicks {h} — well above the target{bs}. Outstanding!"),
+      L("Tendangan {m} sudah {h}, melampaui harapan{bs}.","{Ms} kicks reach {h}, beyond what's expected{bs}."),
+      L("Kelenturan {m} terlihat jelas: tendangannya mencapai {h}, jauh di atas rata-rata{bs}.","{Ms} flexibility shows: kicks reach {h}, far above average{bs}.")]);
+    else if(tier===4)say(good,2,1,[
+      L("{N} sudah menendang {h}, di atas rata-rata{bs}.","{N} already kicks {h}, above average{bs}."),
+      L("Tendangan {m} mencapai {h} — lebih tinggi dari target{bs}.","{Ms} kicks reach {h} — higher than the target{bs}."),
+      L("Tinggi tendangan {m} ({h}) sudah melewati target{bs}.","{Ms} kick height ({h}) is already past the target{bs}.")]);
+    else if(tier===3){
+      say(good,3,1,[
+        L("Tinggi tendangan {m} ({h}) sudah sesuai{bs}.","{Ms} kick height ({h}) is right on track{bs}."),
+        L("{N} menendang {h}, pas dengan target{bs}.","{N} kicks {h}, right on target{bs}."),
+        L("Tendangan {m} sudah {h} — sesuai harapan{bs}.","{Ms} kicks are {h} — as expected{bs}.")]);
+      say(grow,3,2,kyo?[
+        L("Langkah berikutnya untuk tendangan: {s} × {r} dollyo chagi ke mitt yang dipegang sedikit lebih tinggi dari tendangan sekarang.","Next step for kicks: {s} × {r} dollyo chagi to a mitt held slightly above the current kick height."),
+        L("Supaya tendangan makin tinggi: angkat lutut setinggi mungkin sebelum memutar pinggul, {s} × {r} tiap kaki.","To kick higher: lift the knee as high as possible before turning the hip, {s} × {r} per leg."),
+        L("Tambahkan {s} × {r} tendangan ke target setinggi dada, naikkan targetnya sedikit tiap minggu.","Add {s} × {r} kicks to a chest-high target, raising it a little each week.")]:[
+        L("Langkah berikutnya: angkat lutut lebih tinggi sebelum menendang. Coba {s} × {r} ap chagi pelan ke target setinggi dada.","Next step: lift the knee higher before kicking. Try {s} × {r} slow ap chagi to a chest-high target."),
+        L("Supaya tendangan di jurus makin tinggi: ayunan kaki (leg swing) depan & samping {s} × {r} tiap kaki sebelum latihan.","For higher kicks in forms: front & side leg swings, {s} × {r} per leg before training."),
+        L("Latih ap chagi sambil berpegangan pada dinding, {s} × {r} tiap kaki, fokus lutut naik dulu baru menendang.","Practise ap chagi holding a wall, {s} × {r} per leg, knee up first, then kick.")]);
+    }else if(tier===2)say(grow,2,3,[
+      L("Tendangan {m} baru {h}, sedikit di bawah target{bs}. Latihan: peregangan pinggul tahan {t} detik × 3, lalu {s} × {r} tendangan pelan ke target yang dinaikkan bertahap.","{Ms} kicks are {h}, a little below the target{bs}. Drill: hip stretches held {t} s × 3, then {s} × {r} slow kicks to a target raised step by step."),
+      L("Tinggi tendangan {m} ({h}) masih bisa naik. Rutin split samping {t} detik × 3 dan {s} × {r} ayunan kaki setiap hari.","{Ms} kick height ({h}) can still go up. Daily side splits {t} s × 3 and {s} × {r} leg swings."),
+      L("{N} menendang {h}; targetnya sedikit lebih tinggi{bs}. Coba latihan kupu-kupu (butterfly) {t} detik × 3 dan {s} × {r} tendangan ke target setinggi perut lalu dada.","{N} kicks {h}; the target is a bit higher{bs}. Try butterfly stretches {t} s × 3 and {s} × {r} kicks to a belly- then chest-high target.")]);
+    else say(grow,1,3,[
+      L("Tendangan {m} masih {h}, jadi kelenturan pinggul perlu jadi fokus utama. Setiap hari: peregangan kupu-kupu dan split tahan {t} detik × 3, lalu {s} × {r} ayunan kaki.","{Ms} kicks are still {h}, so hip flexibility should be the main focus. Daily: butterfly and split stretches held {t} s × 3, then {s} × {r} leg swings."),
+      L("Fokus utama {m}: menaikkan tendangan yang masih {h}. Mulai dengan peregangan {t} detik × 3 setiap pagi dan {s} × {r} tendangan pelan ke target rendah.","{Ms} main focus: raising kicks that are still {h}. Start with {t} s × 3 stretches each morning and {s} × {r} slow kicks to a low target."),
+      L("Tendangan {m} ({h}) perlu ditingkatkan{bs}. Latihan bertahap: angkat lutut setinggi pinggang {s} × {r}, baru kemudian tendang lurus.","{Ms} kicks ({h}) need work{bs}. Step by step: knee lifts to waist height {s} × {r}, then extend the kick.")]);
+  }else if(an.kicks>0&&an.khTxt){        // hasil lama yang hanya menyimpan teks tinggi tendangan
+    const strong=/bahu|wajah|kepala|shoulder|face|head/i.test(an.khTxt),weak=/pinggang|waist/i.test(an.khTxt);
+    if(strong)good.push([2,L("Tendangan sudah tinggi (","Kicks are already high (")+an.khTxt+")"]);
+    else if(weak)grow.push([2,L("Tinggi tendangan masih bisa ditambah. Peregangan pinggul akan membantu.","Kick height can still grow. Hip stretching will help.")]);
+  }else if(an.kicks===0&&kyo)say(grow,4,4,[
+    L("Belum ada tendangan yang terlihat jelas. Untuk video berikutnya, rekam dari samping dengan seluruh badan terlihat.","No clear kick was seen. Next time, film from the side with the whole body in frame."),
+    L("Tendangan belum terdeteksi di video ini. Coba rekam saat {m} menendang ke mitt, kamera diam di samping.","No kicks detected in this video. Try filming while {m} kicks a mitt, camera still and to the side."),
+    L("Tidak ada tendangan yang terlihat jelas — pastikan kaki tidak terpotong di tepi layar saat merekam.","No clear kicks were visible — make sure the feet aren't cut off at the edge of the frame.")]);
+
+  // ---- kuda-kuda (sudut lutut; makin kecil = makin rendah) ----
+  if(an.knee!=null){
+    const tier=1+[170,160,150,135].filter(x=>an.knee<x).length;
+    if(tier===5)say(good,2,5,[
+      L("Kuda-kuda {m} rendah dan kokoh sekali — dasar yang sangat kuat.","{Ms} stance is very low and solid — a really strong base."),
+      L("{N} punya kuda-kuda yang dalam dan stabil. Pertahankan!","{N} has a deep, stable stance. Keep it up!"),
+      L("Kuda-kuda {m} sangat baik: rendah, kokoh, dan seimbang.","{Ms} stance is excellent: low, solid and balanced.")]);
+    else if(tier===4)say(good,2,5,[
+      L("Kuda-kuda {m} sudah rendah dan stabil.","{Ms} stance is already low and stable."),
+      L("{N} menjaga kuda-kuda dengan baik — lutut tertekuk dan badan seimbang.","{N} holds the stance well — knees bent and body balanced."),
+      L("Kuda-kuda {m} kokoh{bs}.","{Ms} stance is solid{bs}.")]);
+    else if(tier===3){
+      say(good,4,5,[
+        L("Kuda-kuda {m} sudah cukup baik.","{Ms} stance is fairly good."),
+        L("{N} sudah menekuk lutut dengan cukup baik saat kuda-kuda.","{N} bends the knees reasonably well in stance."),
+        L("Kuda-kuda {m} cukup stabil{bs}.","{Ms} stance is fairly stable{bs}.")]);
+      say(grow,3,6,kyo?[
+        L("Supaya lebih kokoh saat tarung: tahan kuda-kuda tarung sambil memantul ringan {t} detik × 3.","For a firmer fighting stance: hold it while bouncing lightly, {t} s × 3."),
+        L("Tekuk lutut sedikit lagi saat bergerak maju-mundur; latih step {s} × {t} detik.","Bend the knees a bit more when stepping in and out; practise steps {s} × {t} s."),
+        L("Latih squat {s} × {r} agar kaki lebih kuat menahan kuda-kuda tarung.","Do {s} × {r} squats so the legs hold the fighting stance better.")]:[
+        L("Supaya lebih kokoh, tekuk lutut sedikit lagi. Latihan: tahan ap kubi {t} detik × 3 tiap kaki.","To be more solid, bend the knee a little more. Drill: hold ap kubi {t} s × 3 per leg."),
+        L("Latih perpindahan jurus pelan-pelan sambil menjaga lutut tetap tertekuk, {s} kali satu jurus penuh.","Practise the form slowly keeping the knees bent, {s} full run-throughs."),
+        L("Tahan juchum seogi {t} detik × 3 agar kuda-kuda di jurus makin rendah.","Hold juchum seogi {t} s × 3 to lower the stance in forms.")]);
+    }else if(tier===2)say(grow,2,6,[
+      L("Kuda-kuda {m} masih agak tinggi. Latihan: squat {s} × {r} dan tahan juchum seogi {t} detik × 3.","{Ms} stance is still a bit high. Drill: {s} × {r} squats and hold juchum seogi {t} s × 3."),
+      L("{N} perlu menekuk lutut lebih dalam saat kuda-kuda. Coba tahan ap kubi {t} detik × 3 tiap kaki di depan cermin.","{N} needs to bend the knees deeper in stance. Hold ap kubi {t} s × 3 per leg in front of a mirror."),
+      L("Kuda-kuda {m} bisa lebih rendah. Lompatan squat (squat jump) {s} × {r} akan menguatkan kaki.","{Ms} stance can go lower. {s} × {r} squat jumps will strengthen the legs.")]);
+    else say(grow,1,6,[
+      L("Lutut {m} masih hampir lurus saat kuda-kuda. Mulai dengan juchum seogi {t} detik × 3 dan squat {s} × {r}, sambil dicek di depan cermin.","{Ms} knees are almost straight in stance. Start with juchum seogi {t} s × 3 and {s} × {r} squats, checking in a mirror."),
+      L("Fokus kuda-kuda: {m} masih berdiri terlalu tegak. Latih tekuk lutut sampai tidak terlihat jari kaki, tahan {t} detik × 3.","Stance focus: {m} still stands too upright. Bend until the toes are hidden by the knee, hold {t} s × 3."),
+      L("Kuda-kuda {m} perlu banyak dilatih. Squat {s} × {r} setiap hari akan sangat membantu.","{Ms} stance needs a lot of work. Daily {s} × {r} squats will help a lot.")]);
+  }
+
+  // ---- guard (khusus Kyorugi) ----
+  if(an.guard!=null){
+    const tier=_anaLvl(an.guard,[0.2,0.4,0.6,0.8]);
+    if(tier===5)say(good,2,7,[
+      L("Tangan {m} hampir selalu di posisi guard — disiplin bertahan yang bagus sekali.","{Ms} hands are almost always in guard — excellent defensive discipline."),
+      L("Guard {m} sangat rapi sepanjang video.","{Ms} guard stays very tidy throughout."),
+      L("{N} tidak lupa menjaga guard, bahkan saat menendang.","{N} keeps the guard up even while kicking.")]);
+    else if(tier===4)say(good,2,7,[
+      L("Guard {m} terjaga baik sepanjang latihan.","{Ms} guard is held well throughout."),
+      L("{N} menjaga tangan di posisi guard dengan baik.","{N} keeps the hands in guard well."),
+      L("Posisi guard {m} sudah bagus.","{Ms} guard position is good.")]);
+    else if(tier===3){
+      say(good,4,7,[
+        L("Guard {m} sudah cukup terjaga.","{Ms} guard is held fairly well."),
+        L("{N} sudah sering menjaga guard.","{N} keeps the guard up most of the time."),
+        L("Tangan {m} cukup sering di posisi guard.","{Ms} hands are in guard fairly often.")]);
+      say(grow,3,8,[
+        L("Perhatikan tangan setelah menendang — sering turun. Latihan: shadow kyorugi {s} ronde × 1 menit, tangan kembali ke dagu setelah tiap tendangan.","Watch the hands after kicking — they often drop. Drill: {s} rounds × 1 min shadow sparring, hands back to the chin after each kick."),
+        L("Biasakan tangan kembali ke guard setelah menendang: {s} × {r} tendangan dengan tangan tetap di dagu.","Make hands return to guard after kicks: {s} × {r} kicks keeping hands at the chin."),
+        L("Latihan guard: {s} × {t} detik bergerak maju-mundur, pelatih menepuk ringan bila tangan turun.","Guard drill: {s} × {t} s stepping in and out, coach taps lightly whenever hands drop.")]);
+    }else say(grow,tier,8,[
+      L("Tangan {m} sering turun saat bergerak dan menendang. Latihan: step maju-mundur {s} × {t} detik dengan tangan menempel di guard, lalu {s} × {r} tendangan sambil menahan guard.","{Ms} hands often drop while moving and kicking. Drill: step in and out {s} × {t} s with hands glued to guard, then {s} × {r} kicks holding the guard."),
+      L("Guard {m} perlu dilatih: ingatkan \"tangan di dagu\" setiap kali selesai menendang. Shadow kyorugi {s} ronde × 1 menit.","{Ms} guard needs work: remind \"hands at chin\" after every kick. Shadow sparring {s} rounds × 1 min."),
+      L("{N} masih sering lupa menjaga guard. Latih {s} × {r} tendangan dengan memegang ujung sabuk di dagu agar tangan tidak turun.","{N} often forgets the guard. Practise {s} × {r} kicks holding the belt ends at the chin so the hands stay up.")]);
+  }
+
+  // ---- tempo serangan (khusus Kyorugi) ----
+  if(an.kpm!=null){
+    const tier=_anaLvl(an.kpm,[0.5,3,6,10]);
+    if(tier>=4)say(good,3,9,[
+      L("{N} aktif menyerang dengan tempo yang bagus.","{N} attacks actively at a good pace."),
+      L("Tempo serangan {m} tinggi dan berani.","{Ms} attacking pace is high and confident."),
+      L("{N} tidak ragu menyerang — temponya bagus.","{N} doesn't hesitate to attack — good pace.")]);
+    else if(tier<=2)say(grow,3,9,[
+      L("Serangan {m} masih jarang. Latihan: kombinasi 2 tendangan cepat ke mitt {s} × {r}.","{Ms} attacks are still rare. Drill: fast 2-kick combos to a mitt {s} × {r}."),
+      L("Ajak {m} lebih berani menyerang: {s} ronde × 30 detik menendang mitt terus-menerus.","Encourage {m} to attack more: {s} rounds × 30 s of continuous mitt kicks."),
+      L("Tambah tempo: {s} × {r} tendangan cepat bergantian kiri-kanan ke mitt.","Build pace: {s} × {r} fast alternating left-right mitt kicks.")]);
+  }
+
+  // ---- perbandingan dengan video sebelumnya ----
+  if(P){
+    if(an.kh!=null&&P.kh!=null&&an.kicks>0){
+      const d=an.kh-P.kh;o.ph=kickLabel(P.kh);
+      if(d>=0.1)say(good,1,10,o.ph!==o.h?[
+        L("Ada kemajuan: tendangan {m} naik dari {ph} ({pd}) menjadi {h}.","Progress: {ms} kicks rose from {ph} ({pd}) to {h}."),
+        L("Dibanding video {pd}, tendangan {m} sekarang lebih tinggi ({h}).","Compared with the {pd} video, {ms} kicks are now higher ({h})."),
+        L("Kerja keras {m} terlihat: tendangan naik dari {ph} ({pd}) ke {h}.","{Ms} hard work shows: kicks went from {ph} ({pd}) to {h}.")]:[
+        L("Ada kemajuan: tendangan {m} lebih tinggi dibanding video {pd}.","Progress: {ms} kicks are higher than in the {pd} video."),
+        L("Dibanding {pd}, tendangan {m} naik sedikit — terus pertahankan.","Compared with {pd}, {ms} kicks rose a little — keep it going."),
+        L("Kerja keras {m} terlihat: tendangan naik sejak {pd}.","{Ms} hard work shows: kicks are higher than on {pd}.")]);
+      else if(d<=-0.15)say(grow,4,10,[
+        L("Tendangan hari ini lebih rendah dibanding {pd} ({ph}). Bisa karena lelah atau sudut kamera — pastikan pemanasan peregangan cukup.","Kicks today are lower than on {pd} ({ph}). Could be tiredness or camera angle — make sure to warm up and stretch."),
+        L("Dibanding video {pd}, tendangan sedikit turun. Coba rekam lagi setelah pemanasan.","Kicks dropped a little since {pd}. Try filming again after a warm-up."),
+        L("Tinggi tendangan turun dari {ph} ({pd}). Ulangi peregangan pinggul sebelum latihan.","Kick height fell from {ph} ({pd}). Repeat hip stretches before training.")]);
+      else if(Math.abs(d)<0.1&&an.kh-(0.35+0.075*(Number(an.bi)||0))>=-0.1)say(good,5,10,[
+        L("Tinggi tendangan {m} konsisten sejak {pd}.","{Ms} kick height has been consistent since {pd}."),
+        L("Tendangan {m} stabil dibanding video {pd}.","{Ms} kicks are steady compared with {pd}."),
+        L("Konsisten: tendangan {m} sama baiknya dengan {pd}.","Consistent: {ms} kicks are as good as on {pd}.")]);
+    }
+    if(an.knee!=null&&P.knee!=null){
+      const d=an.knee-P.knee;
+      if(d<=-8)say(good,1,11,[
+        L("Kuda-kuda {m} lebih rendah dan kokoh dibanding video {pd}.","{Ms} stance is lower and firmer than in the {pd} video."),
+        L("Ada kemajuan kuda-kuda sejak {pd} — lutut lebih tertekuk.","Stance has improved since {pd} — knees are bending more."),
+        L("Dibanding {pd}, {m} sekarang berdiri lebih rendah di kuda-kuda.","Compared with {pd}, {m} now sits lower in stance.")]);
+      else if(d>=10)say(grow,4,11,[
+        L("Kuda-kuda hari ini lebih tinggi dibanding {pd}; ingatkan {m} untuk menekuk lutut.","Today's stance is higher than on {pd}; remind {m} to bend the knees."),
+        L("Lutut {m} lebih lurus dibanding video {pd}. Tambahkan latihan tahan kuda-kuda.","{Ms} knees are straighter than in the {pd} video. Add stance-hold drills."),
+        L("Kuda-kuda sedikit naik sejak {pd} — ulangi squat sebelum latihan.","Stance rose a little since {pd} — repeat squats before training.")]);
+    }
+    if(an.guard!=null&&P.guard!=null){
+      const d=an.guard-P.guard;
+      if(d>=0.15)say(good,1,12,[
+        L("Guard {m} membaik sejak {pd}.","{Ms} guard has improved since {pd}."),
+        L("Dibanding video {pd}, tangan {m} lebih sering di posisi guard.","Compared with {pd}, {ms} hands stay in guard more often."),
+        L("Kemajuan guard terlihat jelas sejak {pd}.","Clear guard progress since {pd}.")]);
+      else if(d<=-0.2)say(grow,4,12,[
+        L("Guard lebih sering turun dibanding {pd}. Ulangi latihan tangan di dagu.","The guard drops more than on {pd}. Repeat hands-at-chin drills."),
+        L("Tangan {m} lebih sering turun dibanding video {pd}.","{Ms} hands drop more often than in the {pd} video."),
+        L("Guard menurun sejak {pd}; fokuskan lagi di latihan berikutnya.","Guard slipped since {pd}; refocus on it next session.")]);
+    }
+  }
+
+  const ord=a=>a.sort((x,y)=>x[0]-y[0]).map(x=>x[1]);
+  const g=ord(good).slice(0,3),w=ord(grow).slice(0,3);
+  if(!g.length)g.push(nm?F(_anaPick(an,13,[
+    L("Terima kasih sudah berlatih, {N}! Konsisten berlatih adalah kuncinya 💪","Thanks for training, {N}! Consistency is the key 💪"),
+    L("{N}, setiap latihan membawa kemajuan — terus semangat! 💪","{N}, every session brings progress — keep it up! 💪"),
+    L("Semangat {N}! Latihan rutin akan membuat tendangan dan kuda-kuda makin kuat 💪","Go {N}! Regular training will make kicks and stances stronger 💪")])):L("Terus semangat berlatih! 💪","Keep up the great training! 💪"));
+  return {good:g,grow:w};
+}
 function fmtEvalNote(val){
   if(!val||typeof val!=="object")return"";
   const n=String(val.n||"");
@@ -218,10 +404,7 @@ function fmtEvalNote(val){
     (an.tips||[]).forEach(t=>grow.push(t));
   }else{
     const khT=an.khTxt||(an.kh!=null?kickLabel(an.kh):"");
-    const strong=an.kh!=null?an.kh>=0.6:/bahu|wajah|kepala|shoulder|face|head/i.test(khT),weak=an.kh!=null?an.kh<0.2:/pinggang|waist/i.test(khT);
-    if(an.kicks>0&&khT){if(strong)good.push(T("Tendangan sudah tinggi (","Kicks are already high (")+khT+")");else if(weak)grow.push(T("Tinggi tendangan masih bisa ditambah. Peregangan pinggul akan membantu.","Kick height can still grow. Hip stretching will help."));}
-    if(an.knee!=null){if(an.knee<=150)good.push(T("Kuda-kuda sudah kokoh dan rendah","Stance is solid and low"));else if(an.knee>=160)grow.push(T("Kuda-kuda masih tinggi. Latihan kuda-kuda rendah dan squat akan membantu.","Stance is still high. Low-stance drills and squats will help."));}
-    if(an.guard!=null){if(an.guard>=0.6)good.push(T("Tangan terjaga baik di posisi guard","Hands stay well in guard"));else if(an.guard<0.4)grow.push(T("Biasakan tangan tetap di posisi guard saat bergerak dan menendang.","Keep hands in guard while moving and kicking."));}
+    {const tx=anaDeviceText(an);tx.good.forEach(t=>good.push(t));tx.grow.forEach(t=>grow.push(t));}
     if(!grow.length&&an.tipsTxt&&an.tipsTxt[0])grow.push(an.tipsTxt[0]);
     if(an.kicks!=null)det.push(T("Tendangan terdeteksi: ","Kicks detected: ")+an.kicks+"×"+(khT?" ("+khT+")":""));
     if(an.knee!=null)det.push(T("Sudut lutut: ","Knee angle: ")+Math.round(an.knee)+"°");
@@ -736,6 +919,14 @@ if(portalId){
   let __t1=0;setInterval(()=>{if(document.hidden)return;if(++__t1%__idleEvery(3,8)===0)__pull().catch(()=>{})},30000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)__pull().catch(()=>{})});
   const S=[];let UList=[],curUnit=localStorage.getItem("dojang_unit")||"all";
   let pendingLogoUri="",dataLogoPending="",anaState={stu:"",mode:"poomsae",engine:"device",file:null,res:null,busy:false,msg:"",err:""};
+  // Konteks untuk kalimat Analisa Video: nama depan, sabuk, usia, dan hasil video sebelumnya (tanggal lebih awal)
+  function anaCtx(st,date,mode){
+    const out={nm:String(st._n||st.n||"").trim().split(/\s+/)[0].slice(0,30),bi:Number.isFinite(Number(st.bi))?Number(st.bi):null,age:Number(st.a)||null};
+    let best=null;
+    (E||[]).forEach(e=>{const d=String((e&&e.date)||String((e&&e.id)||"").slice(0,10));if(!(d<date))return;const v=e.ev&&e.ev[st.id],a=v&&v.an;if(!a||a.src!=="device")return;const same=a.m===mode?1:0;if(!best||same>best.same||(same===best.same&&d>best.d))best={d,same,a};});
+    if(best){const a=best.a;out.prev={d:best.d,m:a.m||"",kh:a.kh!=null?a.kh:null,knee:a.knee!=null?a.knee:null,guard:a.guard!=null?a.guard:null,kpm:a.kpm!=null?a.kpm:null,kicks:a.kicks!=null?a.kicks:null};}
+    return out;
+  }
   const getUnits=()=>{const m=new Map();DEFAULT_UNITS.forEach(u=>m.set(slug(u),u));UList.forEach(u=>{if(u.name)m.set(slug(u.name),u.name)});S.forEach(s=>{if(s.unit)m.set(slug(s.unit),s.unit)});J.forEach(c=>{if(c.unit)m.set(slug(c.unit),c.unit)});const all=[...m.values()];const pu=ROLE!=="owner"&&PERM.units&&PERM.units.length?PERM.units.map(x=>String(x).trim().toLowerCase()):null;return pu?all.filter(u=>pu.includes(String(u).trim().toLowerCase())):all;};
   const unitFee=uName=>{const clean=String(uName||"Terazza").trim();const doc=UList.find(u=>slug(u.name||u.id)===slug(clean));const f=doc&&Number(doc.fee);return f>0?f:RP;};
   const hasCustomFee=s=>s&&s.fee!==undefined&&s.fee!==null&&s.fee!==""&&Number(s.fee)>=0;
@@ -1335,7 +1526,7 @@ if(portalId){
         if(!db)throw new Error(T("Masukkan PIN terlebih dahulu","Enter PIN first"));
         const date=ymd(),ex=findEvalDoc(date,AI_COACH),docId=ex?ex.id:date+"__"+slug(AI_COACH),ev={...((ex&&ex.ev)||{})},old=ev[st.id]||null,m={};
         SK_EVAL_FIELDS.forEach(f=>{const a0=Number(old&&old[f.key]),b0=entry[f.key],hasA=Number.isFinite(a0)&&a0>=1;if(b0&&hasA)m[f.key]=Math.round((a0+b0)/2);else if(b0)m[f.key]=b0;else if(hasA)m[f.key]=a0});
-        const an=anaState.engine==="cloud"?{src:"cloud",m:anaState.mode,txt:String(d.result.catatan||"").slice(0,300),tips:(d.result.saran||[]).slice(0,3).map(x=>String(x).slice(0,160))}:Object.assign({src:"device",m:anaState.mode},d.result.data||{});
+        const an=anaState.engine==="cloud"?{src:"cloud",m:anaState.mode,txt:String(d.result.catatan||"").slice(0,300),tips:(d.result.saran||[]).slice(0,3).map(x=>String(x).slice(0,160))}:Object.assign({src:"device",m:anaState.mode},d.result.data||{},anaCtx(st,date,anaState.mode));
         an.cnt=(old&&old.an&&old.an.cnt)?old.an.cnt+1:(old?2:1);
         m.an=an;m.n="🎥 Analisa video";
         ev[st.id]=m;
@@ -1803,7 +1994,7 @@ function anaFrames(file,n){return new Promise((resolve,reject)=>{
         if(!Object.keys(entry).length){items.push({...o,error:T("Tidak ada aspek yang bisa dinilai dari video ini","No aspect could be scored from this video")});continue;}
         const st=o.st,old=ev[st.id]||null,mm={};
         SK_EVAL_FIELDS.forEach(f=>{const a0=Number(old&&old[f.key]),b0=entry[f.key],hasA=Number.isFinite(a0)&&a0>=1;if(b0&&hasA)mm[f.key]=Math.round((a0+b0)/2);else if(b0)mm[f.key]=b0;else if(hasA)mm[f.key]=a0});
-        const an=Object.assign({src:"device",m:mode},o.result.data||{});an.cnt=(old&&old.an&&old.an.cnt)?old.an.cnt+1:(old?2:1);
+        const an=Object.assign({src:"device",m:mode},o.result.data||{},anaCtx(st,date,mode));an.cnt=(old&&old.an&&old.an.cnt)?old.an.cnt+1:(old?2:1);
         mm.an=an;mm.n="🎥 Analisa video";ev[st.id]=mm;items.push({...o,prev:old,an,saved:true});
       }
       if(items.some(i=>i.saved))await db.collection("evaluations").doc(docId).set({date,coach:AI_COACH,updatedAt:ymd()+" "+hm(),ev});
