@@ -1,4 +1,9 @@
 /*
   Cache-Control: no-cache
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: frame-ancestors 'self'
+  Referrer-Policy: same-origin
+  Permissions-Policy: geolocation=(), payment=(), usb=()
 /sw.js
   Cache-Control: no-cache

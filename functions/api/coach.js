@@ -1,4 +1,5 @@
-import { userFromToken, isOwner, cleanEvalDoc, jsonEtag, unitScope, scopeOf, audit, hitLimit } from "./staff.js";
+import { userFromToken, cleanEvalDoc, jsonEtag, unitScope, scopeOf, audit, hitLimit } from "./staff.js";
+import { tokenIds } from "./portal.js";
 
 const J=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}});
 const validId=id=>/^[A-Za-z0-9_-]{1,120}$/.test(id);
@@ -17,12 +18,16 @@ async function reviewId(coachId,date,key){
 // - Tanpa login (halaman orang tua, layar login): hanya logo, profil pelatih, jadwal, dan ulasan orang tua.
 //   Daftar murid dan nilai murid TIDAK dikirim.
 // - Dengan token pelatih yang sah: data lengkap untuk Portal Pelatih.
+// - Nomor WA pelatih hanya dikirim kepada orang tua yang sudah membuka portal dengan nama anak
+//   (header X-Portal-Token yang sah). Selain itu disembunyikan dan diberi tanda waHidden.
 export async function onRequestGet({env,request}){
   let user=null;
   if(request.headers.get("X-Dojang-Token")){
     user=await userFromToken(request,env);
     if(!user)return J({error:"unauthorized"},401);
   }
+  const ptok=request.headers.get("X-Portal-Token");
+  const parentOk=!user&&!!ptok&&!!(await tokenIds(env,ptok));
   const rs=await env.DB.prepare("SELECT coll,id,data FROM docs WHERE coll IN ('students','evaluations','classes','coaches','units','settings') ORDER BY coll,id").all();
   const students=[],evaluations=[],classes=[],coaches=[],units=[];
   let logo=null;
@@ -41,12 +46,12 @@ export async function onRequestGet({env,request}){
       }else if(isCoachEval(r.id,d))evaluations.push(publicReview(d));
     }
     else if(r.coll==="classes"){if(!scope||scope.units.has(uk(d.unit||"Terazza")))classes.push({id:r.id,unit:d.unit||"Terazza",...d});}
-    else if(r.coll==="coaches")coaches.push({id:r.id,...d});
+    else if(r.coll==="coaches"){if(!parentOk)delete d.wa;coaches.push({id:r.id,...d});}
     else if(r.coll==="units"){if(!scope||scope.units.has(uk(d.name||r.id)))units.push({id:r.id,...d});}
     else if(r.coll==="settings"&&r.id==="logo")logo=typeof d.data==="string"?d.data:"";
   }
   const noLogo=new URL(request.url).searchParams.get("nologo")==="1";   // polling: logo tidak perlu diunduh ulang
-  const out={students,evaluations,classes,coaches,units};
+  const out={students,evaluations,classes,coaches,units,waHidden:!parentOk};
   if(!noLogo)out.logo=logo;
   if(user){
     out.user={name:user.name,username:user.username,perm:{absen:!!(user.perm&&user.perm.absen),nilai:!!(user.perm&&user.perm.nilai)},units:Array.isArray(user.units)?user.units:[],mustChange:!!user.mustChange};
@@ -58,18 +63,6 @@ export async function onRequestGet({env,request}){
 export async function onRequestPost({env,request}){
   const body=await request.json().catch(()=>null);
   if(!body||typeof body!=="object")return J({error:"bad body"},400);
-
-  // Mendaftarkan pelatih: hanya Super Admin atau akun pelatih yang sudah login
-  if(body.action==="register_coach"){
-    const who=(await isOwner(request,env))||(await userFromToken(request,env));
-    if(!who)return J({error:"unauthorized"},401);
-    const id=String(body.id||"").trim();
-    const name=String(body.name||"").trim();
-    if(!validId(id)||!name)return J({error:"invalid coach"},400);
-    await env.DB.prepare("INSERT OR REPLACE INTO docs(coll,id,data) VALUES('coaches',?,?)")
-      .bind(id,JSON.stringify({name,updatedAt:new Date().toISOString()})).run();
-    return J({ok:true});
-  }
 
   if(body.action==="save_eval"){
     const id=String(body.id||"").trim();

@@ -14,7 +14,7 @@ async function makeToken(env, ids) {
   const sig = new Uint8Array(await crypto.subtle.sign("HMAC", await hmacKey(env), enc.encode(payload)));
   return payload + "." + b64u(sig);
 }
-async function tokenIds(env, tok) {
+export async function tokenIds(env, tok) {
   const i = String(tok || "").indexOf(".");
   if (i < 1 || !adminPinOf(env)) return null;
   try {
