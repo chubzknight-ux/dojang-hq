@@ -89,6 +89,36 @@ async function putUser(env, username, data) {
   await env.DB.prepare("INSERT OR REPLACE INTO docs(coll,id,data) VALUES('staff',?,?)").bind(username, JSON.stringify(data)).run();
 }
 
+// ===== Batas percobaan salah per perangkat (IP): 15x / 15 menit =====
+const RL_MAX = 15, RL_WIN = 15 * 60000;
+const ipOf = request => request.headers.get("CF-Connecting-IP") || "unknown";
+async function rlGet(env, request) {
+  const r = await env.DB.prepare("SELECT data FROM docs WHERE coll='staff_rl' AND id=?").bind(ipOf(request)).first();
+  return r ? JSON.parse(r.data) : null;
+}
+async function rlBlocked(env, request) {
+  const d = await rlGet(env, request);
+  return !!d && d.n >= RL_MAX && Date.now() - d.t < RL_WIN;
+}
+async function rlFail(env, request) {
+  let d = await rlGet(env, request);
+  if (!d || Date.now() - d.t >= RL_WIN) d = { n: 0, t: Date.now() };
+  d.n++;
+  await env.DB.prepare("INSERT OR REPLACE INTO docs(coll,id,data) VALUES('staff_rl',?,?)").bind(ipOf(request), JSON.stringify(d)).run();
+}
+const TOO_MANY = { error: "Terlalu banyak percobaan dari perangkat ini. Coba lagi beberapa menit lagi." };
+
+// Balasan JSON dengan ETag: kalau data tidak berubah, kirim 304 (hemat kuota)
+export async function jsonEtag(request, obj) {
+  const body = JSON.stringify(obj);
+  const h = await sha(body);
+  const tag = '"' + Array.from(h.slice(0, 12), b => b.toString(16).padStart(2, "0")).join("") + '"';
+  const inm = (request.headers.get("If-None-Match") || "").replace(/^W\//, "");
+  const base = { "cache-control": "no-store", ETag: tag };
+  if (inm === tag) return new Response(null, { status: 304, headers: base });
+  return new Response(body, { status: 200, headers: { "content-type": "application/json", ...base } });
+}
+
 async function makeToken(env, u) {
   const payload = toB64u(enc.encode(JSON.stringify({ u: u.username, pv: u.pv, exp: Date.now() + TOKEN_DAYS * 864e5 })));
   const sig = new Uint8Array(await crypto.subtle.sign("HMAC", await hmacKey(env), enc.encode(payload)));
@@ -116,7 +146,7 @@ export async function onRequestGet({ request, env }) {
   if (!u) return J({ error: "unauthorized" }, 401);
 
   const rs = await env.DB.prepare(
-    "SELECT coll,id,data FROM docs WHERE coll IN ('students','attendance','evaluations','classes','coaches','units')"
+    "SELECT coll,id,data FROM docs WHERE coll IN ('students','attendance','evaluations','classes','coaches','units') ORDER BY coll,id"
   ).all();
 
   const out = { students: [], attendance: [], evaluations: [], classes: [], coaches: [], units: [] };
@@ -140,7 +170,7 @@ export async function onRequestGet({ request, env }) {
       out[r.coll].push({ id: r.id, ...d });
     }
   }
-  return J({ user: { name: u.name, username: u.username, role: "pelatih", perm: permOf(u) }, ...out });
+  return jsonEtag(request, { user: { name: u.name, username: u.username, role: "pelatih", perm: permOf(u) }, ...out });
 }
 
 // ===== POST: login (publik) + kelola akun (hanya Super Admin) =====
@@ -150,12 +180,13 @@ export async function onRequestPost({ request, env }) {
 
   if (body.action === "login") {
     if (!env.ANALYZE_PIN) return J({ error: "Server belum siap: variabel ANALYZE_PIN belum diisi di Cloudflare." }, 500);
+    if (await rlBlocked(env, request)) return J(TOO_MANY, 429);
     const username = clip(body.username, 40).trim().toLowerCase();
     const password = clip(body.password, 100);
     const u = validUser(username) ? await getUser(env, username) : null;
     const bad = { error: "Nama pengguna atau kata sandi salah." };
 
-    if (!u) { await pbkdf2(password, rand(16)); return J(bad, 401); }   // samakan waktu respons
+    if (!u) { await pbkdf2(password, rand(16)); await rlFail(env, request); return J(bad, 401); }   // samakan waktu respons
 
     if (u.lockUntil && u.lockUntil > Date.now()) {
       const m = Math.ceil((u.lockUntil - Date.now()) / 60000);
@@ -166,6 +197,7 @@ export async function onRequestPost({ request, env }) {
       u.fails = (u.fails || 0) + 1;
       if (u.fails >= MAX_FAILS) { u.lockUntil = Date.now() + LOCK_MIN * 60000; u.fails = 0; }
       await putUser(env, username, u);
+      await rlFail(env, request);
       return J(bad, 401);
     }
     if (!u.active) return J({ error: "Akun ini dinonaktifkan. Hubungi admin." }, 403);
@@ -174,13 +206,43 @@ export async function onRequestPost({ request, env }) {
     return J({ token: await makeToken(env, u), user: { name: u.name, username: u.username, role: "pelatih", perm: permOf(u) } });
   }
 
+  // ---- pelatih mengganti kata sandinya sendiri ----
+  if (body.action === "change_password") {
+    const user = await userFromToken(request, env);
+    if (!user) return J({ error: "unauthorized" }, 401);
+    const oldp = clip(body.old, 100), next = clip(body.next, 100);
+    if (next.length < 6) return J({ error: "Kata sandi baru minimal 6 karakter." }, 400);
+    if (user.lockUntil && user.lockUntil > Date.now()) return J({ error: "Terlalu banyak percobaan. Coba lagi nanti." }, 429);
+    const good = same(await pbkdf2(oldp, fromB64(user.salt)), fromB64(user.hash));
+    if (!good) {
+      user.fails = (user.fails || 0) + 1;
+      if (user.fails >= MAX_FAILS) { user.lockUntil = Date.now() + LOCK_MIN * 60000; user.fails = 0; }
+      await putUser(env, user.username, user);
+      return J({ error: "Kata sandi lama salah." }, 400);
+    }
+    const salt = rand(16);
+    user.salt = toB64(salt);
+    user.hash = toB64(await pbkdf2(next, salt));
+    user.pv = toB64u(rand(9));         // sesi di perangkat lain otomatis keluar
+    user.fails = 0; user.lockUntil = 0; user.updatedAt = new Date().toISOString();
+    await putUser(env, user.username, user);
+    return J({ ok: true, token: await makeToken(env, user) });
+  }
+
   // ---- pelatih menyimpan absensi / penilaian (sesuai izin akunnya) ----
   if (body.action === "write") {
     const user = await userFromToken(request, env);
     if (!user) return J({ error: "unauthorized" }, 401);
     const id = clip(body.id, 140);
     let r;
-    if (body.coll === "attendance") r = cleanAttendance(user, id, body.data);
+    if (body.coll === "attendance") {
+      r = cleanAttendance(user, id, body.data);
+      if (r.clean && body.patch === true) {            // gabungkan hanya yang berubah, supaya tidak menimpa centang pelatih lain
+        const old = await env.DB.prepare("SELECT data FROM docs WHERE coll='attendance' AND id=?").bind(id).first();
+        const oldIds = old ? (JSON.parse(old.data).ids || {}) : {};
+        r.clean.ids = { ...oldIds, ...r.clean.ids };
+      }
+    }
     else if (body.coll === "evaluations") r = cleanEvalDoc(user, id, body.data);
     else return J({ error: "Akun pelatih tidak boleh mengubah data ini." }, 403);
     if (r.error) return J({ error: r.error }, r.status || 400);
@@ -190,7 +252,8 @@ export async function onRequestPost({ request, env }) {
 
   // ---- semua aksi di bawah ini khusus Super Admin ----
   if (!env.ANALYZE_PIN) return J({ error: "Variabel ANALYZE_PIN belum diisi di Cloudflare (harus sama dengan PIN admin)." }, 500);
-  if (!(await isOwner(request, env))) return J({ error: "Hanya Super Admin yang boleh mengelola akun." }, 403);
+  if (await rlBlocked(env, request)) return J(TOO_MANY, 429);
+  if (!(await isOwner(request, env))) { await rlFail(env, request); return J({ error: "Hanya Super Admin yang boleh mengelola akun." }, 403); }
 
   if (body.action === "list") {
     const rs = await env.DB.prepare("SELECT id,data FROM docs WHERE coll='staff'").all();
