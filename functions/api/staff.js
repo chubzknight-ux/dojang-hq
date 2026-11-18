@@ -103,11 +103,21 @@ async function auditEnsure(env) {
   await env.DB.prepare("CREATE TABLE IF NOT EXISTS audit_log(id INTEGER PRIMARY KEY AUTOINCREMENT,t TEXT NOT NULL,who TEXT,role TEXT,action TEXT,detail TEXT)").run();
   auditReady = true;
 }
-export async function audit(env, who, role, action, detail) {
+// mergeMin: kalau catatan terakhir sama persis (orang, aksi, detail) dan baru saja terjadi, cukup perbarui jamnya
+// (dipakai untuk simpan otomatis admin, supaya mengetik catatan tidak membuat puluhan baris)
+export async function audit(env, who, role, action, detail, mergeMin) {
   try {
     await auditEnsure(env);
+    const t = new Date().toISOString(), w = clip(who, 80), dj = JSON.stringify(detail || {}).slice(0, 1500);
+    if (mergeMin) {
+      const last = await env.DB.prepare("SELECT id,t,who,action,detail FROM audit_log ORDER BY id DESC LIMIT 1").first();
+      if (last && last.who === w && last.action === action && last.detail === dj && Date.now() - Date.parse(last.t) < mergeMin * 60000) {
+        await env.DB.prepare("UPDATE audit_log SET t=? WHERE id=?").bind(t, last.id).run();
+        return;
+      }
+    }
     await env.DB.prepare("INSERT INTO audit_log(t,who,role,action,detail) VALUES(?,?,?,?,?)")
-      .bind(new Date().toISOString(), clip(who, 80), role, action, JSON.stringify(detail || {}).slice(0, 1500)).run();
+      .bind(t, w, role, action, dj).run();
     if (Math.random() < 0.04) {      // sesekali bersihkan catatan lebih dari 90 hari
       await env.DB.prepare("DELETE FROM audit_log WHERE t < ?").bind(new Date(Date.now() - 90 * 864e5).toISOString()).run();
     }
@@ -136,11 +146,19 @@ async function rlBlocked(env, request) {
   const d = await rlGet(env, request);
   return !!d && d.n >= RL_MAX && Date.now() - d.t < RL_WIN;
 }
+// Catatan pembatas yang sudah lewat 1 hari dihapus sesekali, supaya tidak menumpuk di database
+async function rlSweep(env) {
+  if (Math.random() >= 0.03) return;
+  try {
+    await env.DB.prepare("DELETE FROM docs WHERE coll='staff_rl' AND CAST(json_extract(data,'$.t') AS INTEGER) < ?").bind(Date.now() - 864e5).run();
+  } catch (e) { /* membersihkan tidak boleh mengganggu pekerjaan utama */ }
+}
 async function rlFail(env, request) {
   let d = await rlGet(env, request);
   if (!d || Date.now() - d.t >= RL_WIN) d = { n: 0, t: Date.now() };
   d.n++;
   await env.DB.prepare("INSERT OR REPLACE INTO docs(coll,id,data) VALUES('staff_rl',?,?)").bind(ipOf(request), JSON.stringify(d)).run();
+  await rlSweep(env);
 }
 const TOO_MANY = { error: "Terlalu banyak percobaan dari perangkat ini. Coba lagi beberapa menit lagi." };
 
@@ -167,6 +185,7 @@ export async function hitLimit(env, request, prefix, max, winMs, key) {
   if (d.n >= max) return false;
   d.n++;
   await env.DB.prepare("INSERT OR REPLACE INTO docs(coll,id,data) VALUES('staff_rl',?,?)").bind(id, JSON.stringify(d)).run();
+  await rlSweep(env);
   return true;
 }
 // ===== Batas pendaftaran akun baru per IP: 5x / jam =====
@@ -395,10 +414,10 @@ export async function onRequestPost({ request, env }) {
     const password = body.password == null ? "" : clip(body.password, 100);
     if (!validUser(username)) return J({ error: "Nama pengguna 3-30 karakter: huruf kecil, angka, titik, strip atau garis bawah." }, 400);
     if (!name) return J({ error: "Nama pelatih wajib diisi." }, 400);
-    if (password && password.length < 6) return J({ error: "Kata sandi minimal 6 karakter." }, 400);
+    if (password) { const pp = pwProblem(password, username); if (pp) return J({ error: pp }, 400); }
 
     const old = await getUser(env, username);
-    if (!old && !password) return J({ error: "Akun baru wajib diberi kata sandi (minimal 6 karakter)." }, 400);
+    if (!old && !password) return J({ error: "Akun baru wajib diberi kata sandi (minimal 8 karakter, huruf dan angka)." }, 400);
 
     const u = old || { username, role: "pelatih", active: true, createdAt: new Date().toISOString() };
     u.name = name;
@@ -449,7 +468,8 @@ export async function onRequestPost({ request, env }) {
         if (slugName(old.name) === slugName(name)) { exists = true; break; }
       }
       if (exists || !username) { skipped.push(name); continue; }
-      const password = Array.from(rand(8), b => AL[b % AL.length]).join("");
+      let password = "";
+      do password = Array.from(rand(10), b => AL[b % AL.length]).join(""); while (pwProblem(password, ""));
       const salt = rand(16);
       await putUser(env, username, {
         username, name, role: "pelatih", active: true, perm: { absen: false, nilai: false },
