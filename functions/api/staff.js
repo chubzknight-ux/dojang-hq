@@ -170,7 +170,7 @@ export async function onRequestGet({ request, env }) {
       out[r.coll].push({ id: r.id, ...d });
     }
   }
-  return jsonEtag(request, { user: { name: u.name, username: u.username, role: "pelatih", perm: permOf(u) }, ...out });
+  return jsonEtag(request, { user: { name: u.name, username: u.username, role: "pelatih", perm: permOf(u), mustChange: !!u.mustChange }, ...out });
 }
 
 // ===== POST: login (publik) + kelola akun (hanya Super Admin) =====
@@ -203,7 +203,7 @@ export async function onRequestPost({ request, env }) {
     if (!u.active) return J({ error: "Akun ini dinonaktifkan. Hubungi admin." }, 403);
     u.fails = 0; u.lockUntil = 0; u.lastLogin = new Date().toISOString();
     await putUser(env, username, u);
-    return J({ token: await makeToken(env, u), user: { name: u.name, username: u.username, role: "pelatih", perm: permOf(u) } });
+    return J({ token: await makeToken(env, u), user: { name: u.name, username: u.username, role: "pelatih", perm: permOf(u) }, mustChange: !!u.mustChange });
   }
 
   // ---- pelatih mengganti kata sandinya sendiri ----
@@ -224,7 +224,7 @@ export async function onRequestPost({ request, env }) {
     user.salt = toB64(salt);
     user.hash = toB64(await pbkdf2(next, salt));
     user.pv = toB64u(rand(9));         // sesi di perangkat lain otomatis keluar
-    user.fails = 0; user.lockUntil = 0; user.updatedAt = new Date().toISOString();
+    user.fails = 0; user.lockUntil = 0; user.mustChange = false; user.updatedAt = new Date().toISOString();
     await putUser(env, user.username, user);
     return J({ ok: true, token: await makeToken(env, user) });
   }
@@ -285,10 +285,47 @@ export async function onRequestPost({ request, env }) {
       u.hash = toB64(await pbkdf2(password, salt));
       u.pv = toB64u(rand(9));          // mengganti ini membuat semua sesi lama otomatis keluar
       u.fails = 0; u.lockUntil = 0;
+      u.mustChange = true;             // sandi dari admin -> pelatih wajib menggantinya saat pertama masuk
     }
     u.updatedAt = new Date().toISOString();
     await putUser(env, username, u);
     return J({ ok: true, created: !old });
+  }
+
+  if (body.action === "bulk_create") {
+    // buatkan akun untuk banyak pelatih sekaligus: sandi acak berbeda tiap orang, hanya-lihat, wajib ganti sandi
+    const names = Array.isArray(body.names) ? body.names.slice(0, 50) : [];
+    const AL = "abcdefghjkmnpqrstuvwxyz23456789";
+    const created = [], skipped = [];
+    const all = await env.DB.prepare("SELECT id,data FROM docs WHERE coll='staff'").all();
+    const have = new Set(all.results.map(r => slugName(JSON.parse(r.data).name)));   // nama yang sudah punya akun
+    for (const raw of names) {
+      const name = clip(raw, 80).trim();
+      if (!name) continue;
+      if (have.has(slugName(name))) { skipped.push(name); continue; }
+      let base = slugName(name).slice(0, 24);
+      if (base === "item") base = "pelatih";
+      if (base.length < 3) base = "pelatih-" + base;
+      let username = "", exists = false;
+      for (let n = 1; n <= 20; n++) {
+        const cand = n === 1 ? base : base + "-" + n;
+        const old = await getUser(env, cand);
+        if (!old) { username = cand; break; }
+        if (slugName(old.name) === slugName(name)) { exists = true; break; }
+      }
+      if (exists || !username) { skipped.push(name); continue; }
+      const password = Array.from(rand(8), b => AL[b % AL.length]).join("");
+      const salt = rand(16);
+      await putUser(env, username, {
+        username, name, role: "pelatih", active: true, perm: { absen: false, nilai: false },
+        salt: toB64(salt), hash: toB64(await pbkdf2(password, salt)), pv: toB64u(rand(9)),
+        fails: 0, lockUntil: 0, mustChange: true,
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+      });
+      have.add(slugName(name));
+      created.push({ name, username, password });
+    }
+    return J({ ok: true, created, skipped });
   }
 
   if (body.action === "toggle") {
