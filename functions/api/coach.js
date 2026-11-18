@@ -1,4 +1,4 @@
-import { userFromToken, isOwner, cleanEvalDoc } from "./staff.js";
+import { userFromToken, isOwner, cleanEvalDoc, jsonEtag } from "./staff.js";
 
 const J=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}});
 const validId=id=>/^[A-Za-z0-9_-]{1,120}$/.test(id);
@@ -15,7 +15,7 @@ export async function onRequestGet({env,request}){
     user=await userFromToken(request,env);
     if(!user)return J({error:"unauthorized"},401);
   }
-  const rs=await env.DB.prepare("SELECT coll,id,data FROM docs WHERE coll IN ('students','evaluations','classes','coaches','units','settings')").all();
+  const rs=await env.DB.prepare("SELECT coll,id,data FROM docs WHERE coll IN ('students','evaluations','classes','coaches','units','settings') ORDER BY coll,id").all();
   const students=[],evaluations=[],classes=[],coaches=[],units=[];
   let logo=null;
   for(const r of rs.results){
@@ -27,8 +27,13 @@ export async function onRequestGet({env,request}){
     else if(r.coll==="units")units.push({id:r.id,...d});
     else if(r.coll==="settings"&&r.id==="logo")logo=typeof d.data==="string"?d.data:"";
   }
-  const out={students,evaluations,classes,coaches,units,logo};
-  if(user)out.user={name:user.name,username:user.username,perm:{absen:!!(user.perm&&user.perm.absen),nilai:!!(user.perm&&user.perm.nilai)}};
+  const noLogo=new URL(request.url).searchParams.get("nologo")==="1";   // polling: logo tidak perlu diunduh ulang
+  const out={students,evaluations,classes,coaches,units};
+  if(!noLogo)out.logo=logo;
+  if(user){
+    out.user={name:user.name,username:user.username,perm:{absen:!!(user.perm&&user.perm.absen),nilai:!!(user.perm&&user.perm.nilai)}};
+    return jsonEtag(request,out);
+  }
   return J(out);
 }
 
