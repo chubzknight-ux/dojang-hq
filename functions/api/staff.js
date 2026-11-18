@@ -158,9 +158,9 @@ export async function adminGuard(request, env, pinValue, missingMsg) {
 }
 export const adminPinOf = env => env.DOJANG_PIN || env.ANALYZE_PIN || "";
 
-// ===== Pembatas jumlah per IP untuk aksi publik (true = boleh, false = sudah melewati batas) =====
-export async function hitLimit(env, request, prefix, max, winMs) {
-  const id = prefix + "|" + ipOf(request);
+// ===== Pembatas jumlah per IP (atau per kunci lain bila diberikan) untuk aksi publik (true = boleh, false = sudah melewati batas) =====
+export async function hitLimit(env, request, prefix, max, winMs, key) {
+  const id = prefix + "|" + (key != null ? String(key) : ipOf(request));
   const r = await env.DB.prepare("SELECT data FROM docs WHERE coll='staff_rl' AND id=?").bind(id).first();
   let d = r ? JSON.parse(r.data) : null;
   if (!d || Date.now() - d.t >= winMs) d = { n: 0, t: Date.now() };
