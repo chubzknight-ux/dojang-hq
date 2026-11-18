@@ -31,7 +31,7 @@ export async function onRequestGet({env,request}){
   const out={students,evaluations,classes,coaches,units};
   if(!noLogo)out.logo=logo;
   if(user){
-    out.user={name:user.name,username:user.username,perm:{absen:!!(user.perm&&user.perm.absen),nilai:!!(user.perm&&user.perm.nilai)}};
+    out.user={name:user.name,username:user.username,perm:{absen:!!(user.perm&&user.perm.absen),nilai:!!(user.perm&&user.perm.nilai)},mustChange:!!user.mustChange};
     return jsonEtag(request,out);
   }
   return J(out);
