@@ -144,6 +144,38 @@ async function rlFail(env, request) {
 }
 const TOO_MANY = { error: "Terlalu banyak percobaan dari perangkat ini. Coba lagi beberapa menit lagi." };
 
+// ===== Pemeriksa PIN admin bersama (dipakai /api/all, /api/docs, /api/deploy, /api/analyze) =====
+// - Tidak ada PIN bawaan: kalau variabel belum diisi di Cloudflare, akses ditolak.
+// - Perbandingan waktu-konstan.
+// - Salah PIN dihitung per IP (bersama salah sandi pelatih): 15x / 15 menit lalu diblokir sementara.
+export async function adminGuard(request, env, pinValue, missingMsg) {
+  const pin = String(pinValue || "").trim();
+  if (!pin) return J({ error: missingMsg || "Server belum diatur: isi variabel DOJANG_PIN di Cloudflare." }, 500);
+  if (await rlBlocked(env, request)) return J(TOO_MANY, 429);
+  const h = (request.headers.get("X-Dojang-Pin") || "").trim();
+  if (!h || !same(await sha(h), await sha(pin))) { await rlFail(env, request); return J({ error: "PIN salah" }, 403); }
+  return null;
+}
+export const adminPinOf = env => env.DOJANG_PIN || env.ANALYZE_PIN || "";
+
+// ===== Batas pendaftaran akun baru per IP: 5x / jam =====
+const REG_MAX = 5, REG_WIN = 60 * 60000, PENDING_MAX = 20;
+async function regHit(env, request) {
+  const id = "reg|" + ipOf(request);
+  const r = await env.DB.prepare("SELECT data FROM docs WHERE coll='staff_rl' AND id=?").bind(id).first();
+  let d = r ? JSON.parse(r.data) : null;
+  if (!d || Date.now() - d.t >= REG_WIN) d = { n: 0, t: Date.now() };
+  if (d.n >= REG_MAX) return false;
+  d.n++;
+  await env.DB.prepare("INSERT OR REPLACE INTO docs(coll,id,data) VALUES('staff_rl',?,?)").bind(id, JSON.stringify(d)).run();
+  return true;
+}
+// kata sandi: minimal 8 karakter, ada huruf dan angka, tidak sama dengan nama pengguna
+const pwProblem = (pw, username) =>
+  pw.length < 8 ? "Kata sandi minimal 8 karakter." :
+  !/[a-zA-Z]/.test(pw) || !/[0-9]/.test(pw) ? "Kata sandi harus berisi huruf dan angka." :
+  username && pw.toLowerCase().includes(username) ? "Kata sandi tidak boleh memuat nama pengguna." : "";
+
 // Balasan JSON dengan ETag: kalau data tidak berubah, kirim 304 (hemat kuota)
 export async function jsonEtag(request, obj) {
   const body = JSON.stringify(obj);
@@ -255,6 +287,7 @@ export async function onRequestPost({ request, env }) {
       await rlFail(env, request);
       return J(bad, 401);
     }
+    if (u.pending) return J({ error: "Akun Anda sudah terdaftar dan sedang menunggu persetujuan admin." }, 403);
     if (!u.active) return J({ error: "Akun ini dinonaktifkan. Hubungi admin." }, 403);
     u.fails = 0; u.lockUntil = 0; u.lastLogin = new Date().toISOString();
     await putUser(env, username, u);
@@ -262,12 +295,42 @@ export async function onRequestPost({ request, env }) {
     return J({ token: await makeToken(env, u), user: { name: u.name, username: u.username, role: "pelatih", perm: permOf(u) }, mustChange: !!u.mustChange });
   }
 
+  // ---- pendaftaran mandiri pelatih (publik): akun dibuat NONAKTIF dan harus disetujui Super Admin ----
+  if (body.action === "register") {
+    if (!env.ANALYZE_PIN) return J({ error: "Server belum siap: variabel ANALYZE_PIN belum diisi di Cloudflare." }, 500);
+    if (await rlBlocked(env, request)) return J(TOO_MANY, 429);
+    if (!(await regHit(env, request))) return J({ error: "Terlalu banyak pendaftaran dari perangkat ini. Coba lagi nanti." }, 429);
+    const username = clip(body.username, 40).trim().toLowerCase();
+    const name = clip(body.name, 80).trim().replace(/\s+/g, " ");
+    const password = clip(body.password, 100);
+    if (name.length < 3) return J({ error: "Nama lengkap minimal 3 huruf." }, 400);
+    if (!validUser(username)) return J({ error: "Nama pengguna 3-30 karakter: huruf kecil, angka, titik, strip atau garis bawah." }, 400);
+    const pp = pwProblem(password, username);
+    if (pp) return J({ error: pp }, 400);
+    const all = await env.DB.prepare("SELECT id,data FROM docs WHERE coll='staff'").all();
+    const rows = all.results.map(r => { try { return { id: r.id, d: JSON.parse(r.data) }; } catch (e) { return { id: r.id, d: {} }; } });
+    if (rows.some(r => r.id === username)) return J({ error: "Nama pengguna sudah dipakai. Pilih yang lain." }, 409);
+    // nama dipakai sebagai pemilik lembar penilaian, jadi tidak boleh sama dengan akun lain
+    if (rows.some(r => slugName(r.d.name) === slugName(name))) return J({ error: "Nama ini sudah punya akun. Hubungi admin bila lupa kata sandi." }, 409);
+    if (rows.filter(r => r.d.pending).length >= PENDING_MAX) return J({ error: "Terlalu banyak pendaftaran yang belum disetujui. Hubungi admin." }, 429);
+    const salt = rand(16), now = new Date().toISOString();
+    await putUser(env, username, {
+      username, name, role: "pelatih", active: false, pending: true, selfReg: true,
+      perm: { absen: false, nilai: false }, units: [],
+      salt: toB64(salt), hash: toB64(await pbkdf2(password, salt)), pv: toB64u(rand(9)),
+      fails: 0, lockUntil: 0, mustChange: false, createdAt: now, updatedAt: now
+    });
+    await audit(env, name, "pelatih", "daftar", { username });
+    return J({ ok: true });
+  }
+
   // ---- pelatih mengganti kata sandinya sendiri ----
   if (body.action === "change_password") {
     const user = await userFromToken(request, env);
     if (!user) return J({ error: "unauthorized" }, 401);
     const oldp = clip(body.old, 100), next = clip(body.next, 100);
-    if (next.length < 6) return J({ error: "Kata sandi baru minimal 6 karakter." }, 400);
+    const pp = pwProblem(next, user.username);
+    if (pp) return J({ error: pp }, 400);
     if (user.lockUntil && user.lockUntil > Date.now()) return J({ error: "Terlalu banyak percobaan. Coba lagi nanti." }, 429);
     const good = same(await pbkdf2(oldp, fromB64(user.salt)), fromB64(user.hash));
     if (!good) {
@@ -319,7 +382,7 @@ export async function onRequestPost({ request, env }) {
     const rs = await env.DB.prepare("SELECT id,data FROM docs WHERE coll='staff'").all();
     const users = rs.results.map(r => {
       const d = JSON.parse(r.data);
-      return { username: r.id, name: d.name, active: !!d.active, perm: permOf(d), units: Array.isArray(d.units) ? d.units : [], lastLogin: d.lastLogin || "", createdAt: d.createdAt || "" };
+      return { username: r.id, name: d.name, active: !!d.active, pending: !!d.pending, selfReg: !!d.selfReg, perm: permOf(d), units: Array.isArray(d.units) ? d.units : [], lastLogin: d.lastLogin || "", createdAt: d.createdAt || "" };
     }).sort((a, b) => a.name.localeCompare(b.name));
     return J({ users });
   }
@@ -403,10 +466,12 @@ export async function onRequestPost({ request, env }) {
     const username = clip(body.username, 40).trim().toLowerCase();
     const u = await getUser(env, username);
     if (!u) return J({ error: "Akun tidak ditemukan." }, 404);
+    const approved = !!u.pending && !!body.active;
     u.active = !!body.active;
+    if (u.active) u.pending = false;
     u.pv = toB64u(rand(9));            // putus sesi yang sedang berjalan
     await putUser(env, username, u);
-    await audit(env, "Super Admin", "owner", "akun_aktif", { username, active: u.active });
+    await audit(env, "Super Admin", "owner", approved ? "akun_setujui" : "akun_aktif", { username, active: u.active });
     return J({ ok: true });
   }
 

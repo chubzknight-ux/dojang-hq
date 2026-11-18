@@ -1,3 +1,4 @@
+import { adminGuard } from "./staff.js";
 const J=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}});
 const REPO="chubzknight-ux/dojang-hq";
 
@@ -25,8 +26,7 @@ async function gh(token,path,opt={}){
 }
 
 export async function onRequestPost({env,request}){
-  const pin=(request.headers.get("X-Dojang-Pin")||"").trim();
-  if(!env.ADMIN_PIN||pin!==env.ADMIN_PIN)return J({error:"PIN Admin salah"},403);
+  {const bad=await adminGuard(request,env,env.ADMIN_PIN,"Server belum diatur: isi variabel ADMIN_PIN di Cloudflare.");if(bad)return bad;}
 
   const body=await request.json().catch(()=>null);
   if(!body||!body.token||!Array.isArray(body.files)||!body.files.length){

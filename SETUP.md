@@ -42,3 +42,14 @@ Setelah itu buka link, masukkan email, lalu masukkan kode yang dikirim.
 - Data di web tersimpan di D1, bukan di browser, jadi sinkron antar HP.
 - Halaman memperbarui data setiap 15 detik dan langsung setelah setiap simpan.
 - Email yang login tapi tidak ada di ALLOWED_EMAILS hanya bisa melihat, tidak bisa menyimpan.
+
+## Keamanan login (wajib dibaca sebelum deploy)
+Variabel di Project `dojang-hq` → Settings → Environment variables:
+- `DOJANG_PIN`: PIN admin untuk membuka & mengubah data. **Tidak ada lagi PIN bawaan.** Kalau `DOJANG_PIN` kosong, dipakai `ANALYZE_PIN`; kalau keduanya kosong, admin tidak bisa masuk.
+- `ANALYZE_PIN`: dipakai untuk kelola akun pelatih & Analisa Video (sebaiknya sama dengan `DOJANG_PIN`).
+- `ADMIN_PIN`: dipakai menu Update App.
+
+Gunakan PIN yang panjang (minimal 8 angka) dan jangan pakai `251025`, karena PIN itu pernah tertulis di kode yang publik.
+Salah PIN/kata sandi 15x dari satu jaringan dalam 15 menit akan diblokir sementara selama 15 menit.
+
+Pelatih bisa mendaftar sendiri lewat tab **Pelatih → Daftar**. Akun baru tidak bisa dipakai sebelum admin menekan **Setujui** di menu Pelatih → Akun Login Pelatih.
