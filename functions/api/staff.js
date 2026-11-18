@@ -158,18 +158,20 @@ export async function adminGuard(request, env, pinValue, missingMsg) {
 }
 export const adminPinOf = env => env.DOJANG_PIN || env.ANALYZE_PIN || "";
 
-// ===== Batas pendaftaran akun baru per IP: 5x / jam =====
-const REG_MAX = 5, REG_WIN = 60 * 60000, PENDING_MAX = 20;
-async function regHit(env, request) {
-  const id = "reg|" + ipOf(request);
+// ===== Pembatas jumlah per IP untuk aksi publik (true = boleh, false = sudah melewati batas) =====
+export async function hitLimit(env, request, prefix, max, winMs) {
+  const id = prefix + "|" + ipOf(request);
   const r = await env.DB.prepare("SELECT data FROM docs WHERE coll='staff_rl' AND id=?").bind(id).first();
   let d = r ? JSON.parse(r.data) : null;
-  if (!d || Date.now() - d.t >= REG_WIN) d = { n: 0, t: Date.now() };
-  if (d.n >= REG_MAX) return false;
+  if (!d || Date.now() - d.t >= winMs) d = { n: 0, t: Date.now() };
+  if (d.n >= max) return false;
   d.n++;
   await env.DB.prepare("INSERT OR REPLACE INTO docs(coll,id,data) VALUES('staff_rl',?,?)").bind(id, JSON.stringify(d)).run();
   return true;
 }
+// ===== Batas pendaftaran akun baru per IP: 5x / jam =====
+const PENDING_MAX = 20;
+const regHit = (env, request) => hitLimit(env, request, "reg", 5, 60 * 60000);
 // kata sandi: minimal 8 karakter, ada huruf dan angka, tidak sama dengan nama pengguna
 const pwProblem = (pw, username) =>
   pw.length < 8 ? "Kata sandi minimal 8 karakter." :
