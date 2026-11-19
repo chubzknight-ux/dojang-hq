@@ -47,7 +47,16 @@ Catatan PIN:
 
 Salah PIN/kata sandi 15x dari satu jaringan dalam 15 menit akan diblokir sementara selama 15 menit.
 
-## 6. Cadangan data
+## 6. Catatan fitur
+- **Absensi & iuran** hanya mengirim centang yang berubah, jadi centang pelatih dan admin tidak saling menimpa.
+  Kalau tidak ada sinyal, centang disimpan di HP (muncul tanda kuning "belum terkirim") dan dikirim otomatis saat online.
+  Kalau server menolak, centang dikembalikan dan muncul pesan.
+- **Tanggal lahir** murid (opsional): kalau diisi, usia dihitung otomatis setiap tahun.
+- **Riwayat kenaikan sabuk** dicatat setiap kali murid diluluskan (mulai dari versi ini), tampil di Laporan murid dan Portal Orang Tua.
+- **Pengumuman** (menu Pengumuman): tampil di Portal Orang Tua dan Dashboard selama tanggal berlaku, bisa untuk semua unit atau satu unit.
+- **Ringkasan bulanan** (menu Ringkasan bulanan): murid baru, iuran masuk, kehadiran, naik sabuk, per unit; bisa disalin ke WA atau diunduh CSV.
+
+## 7. Cadangan data
 - Menu **Data → Unduh cadangan (.json)** secara berkala (aplikasi mengingatkan setiap 7 hari).
 - Cloudflare D1 juga punya **Time Travel**: database bisa dikembalikan ke kondisi pada waktu tertentu
   dalam 7 hari terakhir (paket gratis) atau 30 hari (paket Workers Paid). Caranya lewat terminal:
@@ -57,6 +66,6 @@ Salah PIN/kata sandi 15x dari satu jaringan dalam 15 menit akan diblokir sementa
 - **Riwayat aktivitas** (menu Pelatih) mencatat setiap simpan & hapus data selama 90 hari, sehingga
   bisa dilihat kapan dan apa yang berubah.
 
-## 7. Keamanan repo
+## 8. Keamanan repo
 Repo GitHub sebaiknya dijadikan **private** (GitHub → Settings → General → Danger Zone → Change visibility).
 Deploy Cloudflare yang tersambung ke GitHub tetap berjalan walau repo private.

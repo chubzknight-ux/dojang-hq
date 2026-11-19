@@ -17,14 +17,20 @@ export async function onRequestPut({params,env,request}){
   await log(env,"data_simpan",params.coll,params.id,b);
   return J({ok:true});
 }
+// PATCH biasa: gabungkan kolom teratas.
+// PATCH ?merge=ids (absensi & iuran): hanya centang yang dikirim yang diubah, centang lain (mis. dari pelatih) tetap.
 export async function onRequestPatch({params,env,request}){
   {const bad=await adminGuard(request,env,adminPinOf(env));if(bad)return bad;}
   if(!valid(params))return J({error:"bad id"},400);
   const b=await readBody(request);if(!b)return J({error:"bad body"},400);
+  const mergeIds=new URL(request.url).searchParams.get("merge")==="ids";
+  if(mergeIds&&(!b.ids||typeof b.ids!=="object"||Array.isArray(b.ids)))return J({error:"bad ids"},400);
   const cur=await env.DB.prepare("SELECT data FROM docs WHERE coll=? AND id=?").bind(params.coll,params.id).first();
-  const merged={...(cur?JSON.parse(cur.data):{}),...b};
+  let old={};try{old=cur?JSON.parse(cur.data):{};}catch(e){}
+  const merged=mergeIds?{...old,...b,ids:{...((old.ids&&typeof old.ids==="object")?old.ids:{}),...b.ids}}:{...old,...b};
   await env.DB.prepare("INSERT OR REPLACE INTO docs(coll,id,data) VALUES(?,?,?)").bind(params.coll,params.id,JSON.stringify(merged)).run();
-  await log(env,"data_simpan",params.coll,params.id,merged);
+  if(mergeIds)await audit(env,"Admin","owner","data_simpan",{coll:params.coll,id:params.id,set:b.ids});
+  else await log(env,"data_simpan",params.coll,params.id,merged);
   return J({ok:true});
 }
 export async function onRequestDelete({params,env,request}){

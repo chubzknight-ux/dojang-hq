@@ -124,6 +124,18 @@ export async function audit(env, who, role, action, detail, mergeMin) {
   } catch (e) { /* mencatat tidak boleh mengganggu pekerjaan utama */ }
 }
 
+export const wibToday = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+
+// Usia dari tanggal lahir (YYYY-MM-DD, tanggal WIB). Kalau kosong/tidak valid pakai angka usia lama.
+export function ageOf(lahir, fb) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(lahir || ""));
+  if (!m) return fb;
+  const t = wibToday();
+  let a = +t.slice(0, 4) - +m[1];
+  if (t.slice(5) < m[2] + "-" + m[3]) a--;
+  return a >= 0 && a < 100 ? a : fb;
+}
+
 const validUser = u => /^[a-z0-9._-]{3,30}$/.test(u);
 const clip = (s, n) => String(s == null ? "" : s).slice(0, n);
 
@@ -235,14 +247,14 @@ export async function onRequestGet({ request, env }) {
   if (!u) return J({ error: "unauthorized" }, 401);
 
   const rs = await env.DB.prepare(
-    "SELECT coll,id,data FROM docs WHERE coll IN ('students','attendance','evaluations','classes','coaches','units') ORDER BY coll,id"
+    "SELECT coll,id,data FROM docs WHERE coll IN ('students','attendance','evaluations','classes','coaches','units','pengumuman') ORDER BY coll,id"
   ).all();
 
   const rows = [];
   for (const r of rs.results) { try { rows.push({ coll: r.coll, id: r.id, d: JSON.parse(r.data) }); } catch (e) { /* lewati baris rusak */ } }
   const scope = unitScope(u, rows.filter(r => r.coll === "students").map(r => ({ id: r.id, data: r.d })));
 
-  const out = { students: [], attendance: [], evaluations: [], classes: [], coaches: [], units: [] };
+  const out = { students: [], attendance: [], evaluations: [], classes: [], coaches: [], units: [], pengumuman: [] };
   for (const { coll, id, d } of rows) {
     if (coll === "students") {
       if (scope && !scope.ids.has(id)) continue;
@@ -276,6 +288,11 @@ export async function onRequestGet({ request, env }) {
     } else if (coll === "coaches") {
       delete d.wa; delete d.ratingSummary;
       out.coaches.push({ id, ...d });
+    } else if (coll === "pengumuman") {
+      // hanya yang belum berakhir, dan untuk semua unit atau unit akun ini
+      if (String(d.sampai || "") < wibToday()) continue;
+      if (scope && d.unit && !scope.units.has(unitKey(d.unit))) continue;
+      out.pengumuman.push({ id, judul: clip(d.judul, 120), isi: clip(d.isi, 1500), unit: clip(d.unit, 40), mulai: clip(d.mulai, 10), sampai: clip(d.sampai, 10) });
     }
   }
   return jsonEtag(request, { user: { name: u.name, username: u.username, role: "pelatih", perm: permOf(u), units: Array.isArray(u.units) ? u.units : [], mustChange: !!u.mustChange }, ...out });
