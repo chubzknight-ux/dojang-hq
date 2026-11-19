@@ -1,4 +1,4 @@
-import { userFromToken, cleanEvalDoc, jsonEtag, unitScope, scopeOf, audit, hitLimit } from "./staff.js";
+import { userFromToken, cleanEvalDoc, jsonEtag, unitScope, scopeOf, audit, hitLimit, ageOf } from "./staff.js";
 import { tokenIds } from "./portal.js";
 
 const J=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}});
@@ -37,7 +37,7 @@ export async function onRequestGet({env,request}){
   const uk=x=>String(x==null?"":x).trim().toLowerCase();
   for(const {coll,id,d} of rows){
     const r={coll,id};
-    if(r.coll==="students"){if(user&&!d.cuti&&(!scope||scope.ids.has(r.id)))students.push({id:r.id,n:d.n,a:d.a,bi:d.bi,v:d.v,unit:d.unit||"Terazza"});}
+    if(r.coll==="students"){if(user&&!d.cuti&&(!scope||scope.ids.has(r.id)))students.push({id:r.id,n:d.n,a:ageOf(d.lahir,d.a),bi:d.bi,v:d.v,unit:d.unit||"Terazza"});}
     else if(r.coll==="evaluations"){
       if(user){
         if(isCoachEval(r.id,d))continue;

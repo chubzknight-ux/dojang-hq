@@ -1,4 +1,4 @@
-import { adminGuard, adminPinOf, hitLimit } from "./staff.js";
+import { adminGuard, adminPinOf, hitLimit, ageOf, wibToday } from "./staff.js";
 
 // ===== Pengaman Portal Orang Tua =====
 // Orang tua membuka link lalu mengetik NAMA ANAK sekali per perangkat. Server lalu memberi token bertanda tangan
@@ -94,8 +94,8 @@ export async function onRequestGet({ request, env }) {
     return results.map(r => ({ id: r.id, ...JSON.parse(r.data) }));
   };
 
-  const [students, attendance, payments, evaluations, classes] = await Promise.all([
-    getCol("students"), getCol("attendance"), getCol("payments"), getCol("evaluations"), getCol("classes")
+  const [students, attendance, payments, evaluations, classes, pengumuman] = await Promise.all([
+    getCol("students"), getCol("attendance"), getCol("payments"), getCol("evaluations"), getCol("classes"), getCol("pengumuman")
   ]);
 
   const idLow = id.toLowerCase();
@@ -148,9 +148,10 @@ export async function onRequestGet({ request, env }) {
     : [];
 
   // hanya data yang ditampilkan di portal orang tua (tanpa nomor WA & data internal lain)
-  const SHOW = ["id","n","a","bi","v","unit","gender","ortu","fee","cuti","cutiKet","cutiTgl","sejak","sk","siap","pct","note"];
+  const SHOW = ["id","n","a","bi","v","unit","gender","ortu","fee","cuti","cutiKet","cutiTgl","sejak","sk","siap","pct","note","sabukHist"];
   const studentOut = {};
   for (const k of SHOW) if (st[k] !== undefined) studentOut[k] = st[k];
+  if (st.lahir) studentOut.a = ageOf(st.lahir, st.a);      // usia ikut bertambah tiap tahun (tanggal lahir sendiri tidak dikirim)
 
   return Response.json({
     student: studentOut,
@@ -165,7 +166,15 @@ export async function onRequestGet({ request, env }) {
         coach: e.coach || "Pelatih",
         ...(e.ev[sid] || e.ev[id])
       })),
-    classes
+    classes,
+    // pengumuman yang sedang berlaku untuk semua unit atau unit anak ini
+    announcements: (() => {
+      const t = wibToday(), u = String(st.unit || "Terazza").trim().toLowerCase();
+      return pengumuman
+        .filter(a => String(a.mulai || "") <= t && String(a.sampai || "") >= t && (!a.unit || String(a.unit).trim().toLowerCase() === u))
+        .sort((a, b) => String(b.mulai || "").localeCompare(String(a.mulai || "")))
+        .map(a => ({ judul: String(a.judul || "").slice(0, 120), isi: String(a.isi || "").slice(0, 1500), unit: String(a.unit || "").slice(0, 40), mulai: a.mulai, sampai: a.sampai }));
+    })()
   }, {
     headers: {
       "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
