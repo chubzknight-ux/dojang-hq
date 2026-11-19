@@ -37,9 +37,11 @@ async function hmacKey(env) {
 }
 
 export async function isOwner(request, env) {
-  const pin = request.headers.get("X-Dojang-Pin") || "";
-  if (!env.ANALYZE_PIN || !pin) return false;
-  return same(await sha(pin), await sha(env.ANALYZE_PIN));
+  // spasi di awal/akhir diabaikan, sama seperti adminGuard
+  const pin = (request.headers.get("X-Dojang-Pin") || "").trim();
+  const want = String(env.ANALYZE_PIN || "").trim();
+  if (!want || !pin) return false;
+  return same(await sha(pin), await sha(want));
 }
 
 export const slugName = s => String(s || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "item";

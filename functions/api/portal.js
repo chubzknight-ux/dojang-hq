@@ -89,9 +89,10 @@ export async function onRequestGet({ request, env }) {
   }
 
 
+  // satu baris rusak dilewati saja, jangan menggagalkan seluruh portal
   const getCol = async name => {
     const { results } = await env.DB.prepare("SELECT id, data FROM docs WHERE coll = ?").bind(name).all();
-    return results.map(r => ({ id: r.id, ...JSON.parse(r.data) }));
+    return results.map(r => { try { return { id: r.id, ...JSON.parse(r.data) }; } catch (e) { return null; } }).filter(Boolean);
   };
 
   const [students, attendance, payments, evaluations, classes, pengumuman] = await Promise.all([
