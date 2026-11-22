@@ -1,7 +1,7 @@
 const J=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}});
 import { adminGuard, adminPinOf, audit } from "../../staff.js";
-// akun pelatih hanya boleh diubah lewat /api/staff (yang memeriksa & meng-hash kata sandi)
-const valid=p=>/^[a-z]{1,30}$/.test(p.coll)&&p.coll!=="staff"&&/^[A-Za-z0-9_-]{1,80}$/.test(p.id);
+// akun pelatih hanya boleh diubah lewat /api/staff (yang memeriksa & meng-hash kata sandi); hasil Champion lewat /api/champion
+const valid=p=>/^[a-z]{1,30}$/.test(p.coll)&&p.coll!=="staff"&&p.coll!=="champion"&&/^[A-Za-z0-9_-]{1,80}$/.test(p.id);
 const readBody=async request=>{const b=await request.json();return b&&typeof b==="object"&&!Array.isArray(b)?b:null};
 // Nama yang mudah dibaca untuk Riwayat Aktivitas (murid: n, pelatih/unit: name)
 const labelOf=d=>{if(!d||typeof d!=="object")return "";const v=d.n||d.name||"";return typeof v==="string"?v.slice(0,80):"";};

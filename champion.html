@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ff7a2f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Champion">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Champion – Latihan PR Taekwondo</title>
+<link rel="manifest" href="/champion.webmanifest">
+<link rel="icon" href="/champion-icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/champion-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+
+:root{--bg:#fff7e6;--ink:#1e293b;--mut:#64748b;--pri:#ff7a2f;--pink:#ec4899;--blue:#3b82f6;--green:#16a34a;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--kuat:#ff6b35;--lentur:#8b5cf6;--line:#fde2c4}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg);color:var(--ink);font-family:"Baloo 2",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:linear-gradient(180deg,#fff1d6 0%,#fff7e6 30%,#eef6ff 100%) fixed}
+.screen{display:none;padding:16px 16px 56px;max-width:680px;margin:0 auto}
+.screen.on{display:block}
+h1{font-size:26px;line-height:1.15;font-weight:800}
+h2{font-size:21px;margin:24px 0 10px;font-weight:800}
+.mut{color:var(--mut);font-size:15px;line-height:1.4}
+input,select{width:100%;padding:12px 14px;border-radius:14px;border:3px solid var(--line);background:#fff;color:var(--ink);font-size:18px;font-family:inherit}
+input:focus,select:focus{outline:none;border-color:var(--pri)}
+input[readonly]{background:#f8fafc;color:var(--mut)}
+label{display:block;font-size:15px;color:var(--mut);margin:12px 0 4px;font-weight:700}
+.chk{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:17px;color:var(--ink)}
+.chk input{width:24px;height:24px;accent-color:var(--pri)}
+.btn{display:block;width:100%;padding:14px;border:0;border-radius:18px;background:var(--pri);color:#fff;font-weight:800;font-size:19px;margin-top:12px;cursor:pointer;font-family:inherit;box-shadow:0 5px 0 #c2410c;transition:transform .05s}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 #c2410c}
+.btn.sec{background:#fff;color:var(--ink);border:3px solid var(--line);box-shadow:0 4px 0 var(--line)}
+.btn.wa{background:#25d366;color:#053b1c;box-shadow:0 5px 0 #15803d}
+.btn.blue{background:var(--blue);box-shadow:0 5px 0 #1d4ed8}
+.btn.small{display:inline-block;width:auto;padding:8px 14px;font-size:15px;margin:0}
+/* home */
+.hero{display:flex;gap:12px;align-items:center;margin-top:6px}
+.mascot{font-size:64px;line-height:1;animation:bob 2.2s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-6px) rotate(-4deg)}}
+.bubble{background:#fff;border:3px solid var(--line);border-radius:20px;padding:10px 14px;font-size:17px;font-weight:700;position:relative;flex:1}
+.bubble:before{content:"";position:absolute;left:-12px;top:22px;border:8px solid transparent;border-right-color:var(--line)}
+.stats{display:flex;gap:8px;margin-top:14px}
+.stat{flex:1;background:#fff;border-radius:16px;padding:8px 6px;text-align:center;border:3px solid var(--line)}
+.stat b{display:block;font-size:22px;line-height:1.1}
+.stat small{font-size:12px;color:var(--mut);font-weight:700}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ex{background:#fff;border:3px solid var(--c,#ddd);border-radius:22px;padding:12px;cursor:pointer;box-shadow:0 5px 0 var(--c,#ddd);position:relative}
+.ex:active{transform:translateY(3px);box-shadow:0 2px 0 var(--c)}
+.ex .e{font-size:40px;line-height:1.1}
+.ex b{display:block;font-size:17px;line-height:1.15;margin:4px 0 2px}
+.ex .d{font-size:13px;color:var(--mut);line-height:1.25}
+.chips{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-size:12px;font-weight:700;background:#f1f5f9;border-radius:99px;padding:1px 8px}
+.ex .done{position:absolute;top:8px;right:10px;font-size:22px}
+.cat{display:inline-block;color:#fff;border-radius:99px;padding:2px 12px;font-size:15px;margin-right:6px}
+.pr{background:linear-gradient(135deg,#ff7a2f,#ec4899);color:#fff;border-radius:24px;padding:16px;margin-top:16px;box-shadow:0 6px 0 #be185d}
+.pr h3{font-size:21px}
+.pbar{height:14px;border-radius:99px;background:#ffffff55;margin:8px 0 10px;overflow:hidden}
+.pbar i{display:block;height:100%;background:#fff;border-radius:99px;transition:width .4s}
+.pitem{display:flex;align-items:center;gap:10px;background:#ffffff26;border-radius:14px;padding:8px 12px;margin-top:6px;cursor:pointer;font-weight:700;font-size:16px}
+.pitem span:last-child{margin-left:auto;font-size:20px}
+.card{background:#fff;border:3px solid var(--line);border-radius:20px;padding:14px;margin-top:12px}
+.hist div{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:2px dashed var(--line);font-size:16px}
+.hist div:last-child{border:0}
+.tips{counter-reset:t;list-style:none}
+.tips li{counter-increment:t;position:relative;padding:6px 0 6px 40px;font-size:17px;line-height:1.35}
+.tips li:before{content:counter(t);position:absolute;left:0;top:6px;width:28px;height:28px;border-radius:50%;background:var(--pri);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center}
+.badge{display:inline-block;padding:2px 12px;border-radius:99px;background:#fff;border:3px solid var(--line);font-size:15px;font-weight:700;margin-top:6px}
+.link{color:var(--blue);font-weight:700;text-decoration:none;cursor:pointer}
+/* live */
+#live{position:fixed;inset:0;background:#000;padding:0;max-width:none;color:#fff;font-family:"Baloo 2",system-ui,sans-serif}
+#stage{position:absolute;inset:0;transition:box-shadow .15s}
+#stage video,#stage canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+#stage.fg{box-shadow:inset 0 0 0 12px var(--ok)}
+#stage.fb{box-shadow:inset 0 0 0 12px var(--bad)}
+.mirror{transform:scaleX(-1)}
+#hudTop{position:absolute;top:0;left:0;right:0;padding:calc(10px + env(safe-area-inset-top)) 14px 26px;background:linear-gradient(#000c,#0000);display:flex;justify-content:space-between;gap:10px}
+#exName{font-size:16px;color:#fde68a;font-weight:700}
+#big{font-size:52px;font-weight:800;line-height:1}
+#big small{font-size:20px;font-weight:700;color:#e2e8f0}
+#sub{font-size:14px;color:#e2e8f0}
+#info{font-size:13px;color:#e2e8f0;text-align:right;max-width:45%}
+#cue{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100px + env(safe-area-inset-bottom));padding:10px 20px;border-radius:20px;font-size:25px;font-weight:800;text-align:center;width:max-content;max-width:92%;background:#000c;border:3px solid #fff5;line-height:1.2}
+#cue.g{border-color:var(--ok);color:#bbf7d0}
+#cue.w{border-color:var(--warn);color:#fde68a}
+#cue:empty{display:none}
+#meter{position:absolute;right:12px;top:120px;bottom:calc(180px + env(safe-area-inset-bottom));width:24px;border-radius:14px;background:#ffffff30;overflow:hidden;border:2px solid #fff6}
+#mFill{position:absolute;left:0;right:0;bottom:0;height:0;background:#e2e8f0;transition:height .1s}
+#mFill.g{background:var(--ok)}#mFill.w{background:var(--warn)}
+#mLine{position:absolute;left:0;right:0;height:4px;background:#fff}
+#mStar{position:absolute;right:40px;font-size:22px;transform:translateY(50%)}
+#ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;font-size:24px;font-weight:800;pointer-events:none;text-shadow:0 2px 10px #000}
+#ov.num{font-size:160px}
+#ov:empty{display:none}
+#ovBtn{position:absolute;left:16px;right:16px;bottom:120px;display:none;width:auto}
+#hudBot{position:absolute;left:0;right:0;bottom:0;padding:12px 12px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;background:linear-gradient(#0000,#000c)}
+#hudBot .btn{margin:0}
+#hudBot .btn.sq{flex:0 0 66px}
+/* result */
+.score{width:160px;height:160px;border-radius:50%;margin:10px auto 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:10px solid var(--pri);background:#fff}
+.score b{font-size:56px;line-height:1}
+.center{text-align:center}
+#rStars{font-size:40px;letter-spacing:4px}
+.rows div{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:2px dashed var(--line);font-size:16px}
+.rows div:last-child{border:0}
+.rows div span:last-child{text-align:right;font-weight:800}
+#rImg{width:100%;border-radius:18px;margin-top:12px;display:none;border:3px solid var(--line)}
+.fix{background:#fff7ed;border:3px solid #fdba74;border-radius:18px;padding:12px;margin-top:12px;font-size:17px}
+.absen{margin-top:12px;border-radius:16px;padding:10px 14px;font-weight:800;font-size:17px;text-align:center;background:#f1f5f9}
+.absen.ok{background:#dcfce7;color:#166534}.absen.bad{background:#fee2e2;color:#991b1b}
+.conf{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:99}
+.conf i{position:absolute;top:-20px;width:10px;height:16px;border-radius:3px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(115vh) rotate(800deg)}}
+/* coach */
+.kid{background:#fff;border:3px solid var(--line);border-radius:18px;padding:12px;margin-top:10px}
+.kid h4{font-size:19px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.kid .it{padding:8px 0;border-top:2px dashed var(--line);font-size:15px}
+.kid .it:first-of-type{border-top:0}
+.kid img{width:100%;max-width:360px;border-radius:12px;margin-top:6px;display:block}
+.tag{font-size:13px;border-radius:99px;padding:1px 10px;background:#dcfce7;color:#166534;white-space:nowrap}
+.err{color:var(--bad);font-weight:700;margin-top:10px}
+.gen{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:2px dashed var(--line)}
+.gen input[type=checkbox]{width:24px;height:24px;flex:0 0 24px;accent-color:var(--pri)}
+.gen span{flex:1;font-size:16px;font-weight:700}
+.gen input[type=number]{width:76px;flex:0 0 76px;padding:6px 8px;font-size:16px}
+
+.kids{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.kidchip{border:3px solid var(--line);background:#fff;border-radius:99px;padding:6px 14px;font-weight:800;font-size:16px;cursor:pointer;font-family:inherit;color:var(--ink)}
+.kidchip.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.logo{width:44px;height:44px;border-radius:12px;object-fit:contain;background:#fff;border:2px solid var(--line);display:none}
+.top{display:flex;align-items:center;gap:10px}
+.note{background:#ffffff33;border-radius:12px;padding:8px 10px;margin-top:8px;font-size:15px}
+.install{display:none}
+.belum{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.belum span{background:#fef3c7;color:#92400e;border-radius:99px;padding:2px 10px;font-size:14px;font-weight:700}
+.sumrow{display:flex;gap:8px;margin-top:10px}
+.sumrow .stat b{font-size:26px}
+textarea{width:100%;padding:10px 12px;border-radius:14px;border:3px solid var(--line);font-family:inherit;font-size:16px;min-height:70px}
+.boot{text-align:center;padding-top:60px}
+.boot .big{font-size:80px}
+</style>
+</head>
+<body>
+
+<!-- BOOT / BUTUH PORTAL -->
+<section id="boot" class="screen on">
+  <div class="boot"><div class="big mascot">🏆</div><h1>Champion</h1><p class="mut" id="bootMsg" style="margin-top:8px">Memuat…</p><div id="bootAct"></div></div>
+</section>
+
+<!-- HOME -->
+<section id="home" class="screen">
+  <div class="top"><img class="logo" id="clubLogo" alt=""><div><h1>🏆 Champion</h1><div class="mut" id="clubName" style="font-weight:700"></div></div></div>
+  <div class="hero"><div class="mascot">🐯</div><div class="bubble" id="bubble">Hai! Siap jadi Champion hari ini? 💪</div></div>
+  <div class="kids" id="kidChips"></div>
+  <div class="stats">
+    <div class="stat"><b id="stStar">0</b><small>⭐ Bintang</small></div>
+    <div class="stat"><b id="stStreak">0</b><small>🔥 Hari beruntun</small></div>
+    <div class="stat"><b id="stLvl">1</b><small id="stLvlName">🏅 Level</small></div>
+  </div>
+  <button class="btn blue install" id="installBtn" data-act="install">📲 Pasang aplikasi Champion</button>
+  <div id="iosHint" class="card mut" style="display:none">📲 Biar jadi aplikasi: tekan tombol <b>Bagikan</b> di Safari → <b>Tambah ke Layar Utama</b>.</div>
+  <div id="prBox"></div>
+  <h2><span class="cat" style="background:var(--kuat)">💥 Kekuatan</span></h2>
+  <p class="mut">Bikin kaki & badan kuat, tendangan makin kencang!</p>
+  <div class="grid" id="exKuat" style="margin-top:10px"></div>
+  <h2><span class="cat" style="background:var(--lentur)">🌈 Kelenturan</span></h2>
+  <p class="mut">Badan lentur, tendangan makin tinggi!</p>
+  <div class="grid" id="exLentur" style="margin-top:10px"></div>
+  <h2>📒 Riwayat latihanku</h2>
+  <div class="card hist" id="hist"></div>
+  <p class="mut center" style="margin-top:22px">🔒 Video tidak dikirim ke mana-mana, semua dicek langsung di HP.<br><a class="link" id="portalLink" href="/">← Portal Orang Tua</a></p>
+</section>
+
+<!-- SETUP -->
+<section id="setup" class="screen">
+  <button class="btn sec small" data-act="home">← Kembali</button>
+  <div style="font-size:72px;line-height:1;margin-top:10px" id="sEmoji"></div>
+  <h1 id="sName"></h1>
+  <p class="mut" id="sDesc"></p>
+  <span class="badge" id="sView"></span>
+  <div class="card"><b style="font-size:18px">Cara main</b><ol class="tips" id="sTips"></ol></div>
+  <label id="sTarLbl">Target</label>
+  <input id="sTar" type="number" inputmode="numeric" min="1">
+  <label>Kamera</label>
+  <select id="sCam"><option value="user">🤳 Kamera depan (bisa lihat layar)</option><option value="environment">📷 Kamera belakang (lebih tajam)</option></select>
+  <label class="chk"><input type="checkbox" id="sVoice" checked> 🔊 Suara pelatih</label>
+  <label class="chk"><input type="checkbox" id="sAcc"> ⚡ Mode akurat (untuk HP kencang)</label>
+  <button class="btn" data-act="start">Ayo Mulai! 🚀</button>
+  <p class="mut center" style="margin-top:10px" id="sLoad"></p>
+</section>
+
+<!-- LIVE -->
+<section id="live" class="screen">
+  <div id="stage"><video id="vid" playsinline muted autoplay></video><canvas id="cv"></canvas></div>
+  <div id="hudTop"><div><div id="exName"></div><div id="big"></div><div id="sub"></div></div><div id="info"></div></div>
+  <div id="meter"><div id="mFill"></div><div id="mLine"></div></div>
+  <div id="cue"></div>
+  <div id="ov"></div>
+  <button class="btn sec" id="ovBtn" data-act="backSetup">Kembali</button>
+  <div id="hudBot"><button class="btn sec sq" data-act="voice" id="vBtn">🔊</button><button class="btn" data-act="stop">Selesai ✋</button></div>
+</section>
+
+<!-- RESULT -->
+<section id="result" class="screen">
+  <div class="center">
+    <div class="mut" id="rEx" style="font-size:18px;font-weight:700"></div>
+    <div class="score" id="rScoreBox"><b id="rScore">0</b><small>skor</small></div>
+    <div id="rStars"></div>
+    <h1 id="rPraise"></h1>
+    <p style="margin-top:4px;font-size:19px;font-weight:800" id="rMain"></p>
+  </div>
+  <div id="rAbsen" class="absen"></div>
+  <div id="rNext"></div>
+  <div class="card rows" id="rRows"></div>
+  <div id="rFix"></div>
+  <img id="rImg" alt="Posisi terbaik">
+  <button class="btn blue" data-act="share">📤 Bagikan foto + hasil</button>
+  <button class="btn sec" data-act="again">🔁 Coba lagi</button>
+  <button class="btn sec" data-act="home">🏠 Menu</button>
+</section>
+
+<!-- PELATIH -->
+<section id="coach" class="screen">
+  <div class="top"><img class="logo" id="cLogo" alt=""><div><h1>🏆 Champion · Pelatih</h1><div class="mut" id="cClub" style="font-weight:700"></div></div></div>
+  <div class="card">
+    <label>Tanggal</label><input id="cTgl" type="date">
+    <label>Unit</label><select id="cUnit"><option value="">Semua unit</option></select>
+    <button class="btn" data-act="coachLoad">🔄 Lihat absen PR</button>
+  </div>
+  <div id="cOut"></div>
+  <h2>📌 PR aktif</h2>
+  <div class="card" id="prEdit"></div>
+  <p class="center" style="margin-top:20px"><a class="link" href="/">← Kembali ke Dojang HQ</a></p>
+</section>
+
+<script type="module">
+const CDN='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+const MODELS={lite:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+  full:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task'};
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const raw=k=>{try{return localStorage.getItem(k)||''}catch(e){return ''}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const tglLokal=(ts=Date.now())=>new Date(ts+7*3600e3).toISOString().slice(0,10);
+const fmtJam=ts=>new Date(ts).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jakarta'});
+const qs=new URLSearchParams(location.search);
+
+/* ---------- geometri ---------- */
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const mid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+function ang(a,b,c){const ax=a.x-b.x,ay=a.y-b.y,cx=c.x-b.x,cy=c.y-b.y;const m=Math.hypot(ax,ay)*Math.hypot(cx,cy);return m?Math.acos(clamp((ax*cx+ay*cy)/m,-1,1))*180/Math.PI:180;}
+const fromVert=(lo,hi)=>Math.atan2(Math.abs(hi.x-lo.x),lo.y-hi.y)*180/Math.PI;
+const fromDown=(a,b)=>{const dx=b.x-a.x,dy=b.y-a.y,m=Math.hypot(dx,dy)||1;return Math.acos(clamp(dy/m,-1,1))*180/Math.PI;};
+const torso=P=>fromVert(mid(P[23],P[24]),mid(P[11],P[12]));
+const vis=(P,ids)=>ids.reduce((s,i)=>s+P[i].v,0);
+let SM={};const sm=(k,v,a=0.35)=>SM[k]=(SM[k]==null?v:SM[k]+(v-SM[k])*a);
+const BOTH=[[11,12,23,24,25,26,27,28]];
+const ONESIDE=[[11,23,25,27],[12,24,26,28]];
+
+/* ---------- 12 latihan ---------- */
+const EX={
+/* ===== KEKUATAN ===== */
+kuda:{cat:'kuat',name:'Kuda-kuda Kuat',emoji:'🐴',mode:'hold',def:30,view:'HP di depan',desc:'Kaki kuat & kokoh, kuda-kuda nggak gampang goyang.',
+  tips:['Taruh HP sejajar pinggang, 2–3 langkah besar di depanmu','Kepala sampai kaki harus kelihatan di layar','Buka kaki 2x lebar bahu, turunkan pinggul, badan tegak','Waktu cuma jalan kalau garis badanmu HIJAU'],
+  need:BOTH,bestLabel:'Posisi terendah (sudut lutut)',fmtBest:v=>`${v|0}° (makin kecil makin rendah)`,
+  eval(P,S){
+    const kL=ang(P[23],P[25],P[27]),kR=ang(P[24],P[26],P[28]);
+    const knee=sm('knee',(kL+kR)/2),sw=Math.max(1,dist(P[11],P[12])),ankSp=Math.abs(P[27].x-P[28].x);
+    const width=sm('w',ankSp/sw),lean=sm('lean',torso(P)),kin=sm('kin',Math.abs(P[25].x-P[26].x)/Math.max(1,ankSp));
+    let cue=null,neutral=false;
+    if(width<1.5){cue='Buka kaki lebih lebar';neutral=width<1.1;}
+    else if(knee>125)cue='Turun lebih rendah!';
+    else if(kin<0.85)cue='Dorong lutut ke luar';
+    else if(lean>15)cue='Badan tegak ya';
+    else if(knee>110)cue='Sedikit lagi, turun!';
+    const good=!cue,depth=clamp((170-knee)/80,0,1);
+    if(width>=1.5)S.best=S.best==null?knee:Math.min(S.best,knee);
+    return {good,neutral,cue:good?(knee<=100?'Kuat banget! Tahan…':'Bagus, tahan…'):cue,meter:depth,line:60/80,
+      labels:[{i:25,t:`${kL|0}°`},{i:26,t:`${kR|0}°`}],info:`Lutut ${knee|0}° · Lebar ${width.toFixed(1)}x bahu`,
+      q:clamp(depth*0.7+(lean<=15?0.15:0)+(kin>=0.85?0.15:0),0,1)};
+  }},
+squat:{cat:'kuat',name:'Squat Kursi Ajaib',emoji:'🪑',mode:'reps',def:10,view:'HP di SAMPING',desc:'Duduk di kursi khayalan. Paha kuat untuk tendangan.',
+  tips:['Taruh HP di SAMPING kamu (badan menyamping ke kamera), 2 langkah besar','Turun seperti mau duduk di kursi, sampai paha sejajar lantai','Tumit tetap nempel, dada tetap terangkat','Naik lagi sampai berdiri tegak = 1 hitungan'],
+  need:ONESIDE,bestLabel:'Squat terdalam (sudut lutut)',fmtBest:v=>`${v|0}°`,
+  eval(P,S){
+    const useL=vis(P,[11,23,25,27,29,31])>=vis(P,[12,24,26,28,30,32]);
+    const [sh,hp,kn,an,he,ft]=useL?[11,23,25,27,29,31]:[12,24,26,28,30,32];
+    const knee=sm('k',ang(P[hp],P[kn],P[an])),lean=sm('lean',fromVert(P[hp],P[sh]));
+    const fl=Math.max(1,dist(P[he],P[ft])),heel=sm('heel',(P[ft].y-P[he].y)>fl*0.45?1:0,0.2)>0.6;
+    const r=S.r||(S.r={phase:'up'});
+    const meter=clamp((170-knee)/100,0,1),line=75/100,labels=[{i:kn,t:`${knee|0}°`}],info=`Lutut ${knee|0}° · Condong ${lean|0}°`;
+    if(r.phase==='up'){
+      if(knee<125)Object.assign(r,{phase:'down',minK:knee,maxL:lean,heel});
+      else return {neutral:true,cue:'Turun pelan, kayak mau duduk',meter,line,labels,info,q:0};
+    }
+    r.minK=Math.min(r.minK,knee);r.maxL=Math.max(r.maxL,lean);r.heel=r.heel||heel;
+    S.best=S.best==null?knee:Math.min(S.best,knee);
+    let cue;
+    if(heel)cue='Tumit jangan diangkat';else if(lean>50)cue='Dada diangkat ya';else if(knee>95)cue='Turun lagi, paha sejajar lantai';else cue='Mantap! Naik';
+    const good=knee<=95&&lean<=50&&!heel;
+    let rep=null;
+    if(knee>155){const ok=r.minK<=95&&r.maxL<=50&&!r.heel;rep={good:ok,msg:ok?'Bagus!':(r.minK>95?'Kurang dalam':r.heel?'Tumit terangkat':'Badan terlalu bungkuk')};r.phase='up';}
+    return {good,cue,meter,line,labels,info,q:good?meter:meter*0.5,rep};
+  }},
+lompat:{cat:'kuat',name:'Lompat Katak',emoji:'🐸',mode:'reps',def:8,view:'HP di depan',desc:'Jongkok lalu lompat setinggi-tingginya. Bikin tendangan meledak!',
+  tips:['Taruh HP agak jauh (3 langkah besar) supaya kepala tetap kelihatan waktu lompat','Berdiri tegak dulu sebentar','Jongkok, lalu LOMPAT ke atas setinggi mungkin','Mendarat pelan dengan lutut ditekuk, berdiri lagi'],
+  need:BOTH,bestLabel:'Lompatan tertinggi',fmtBest:v=>`${Math.round(v*100)} poin`,
+  eval(P,S){
+    const kL=ang(P[23],P[25],P[27]),kR=ang(P[24],P[26],P[28]),knee=sm('k',(kL+kR)/2);
+    const hipM=mid(P[23],P[24]),ankM=mid(P[27],P[28]),ank=sm('ank',ankM.y,0.6);
+    const r=S.r||(S.r={phase:'up',base:null,leg:null});
+    if(r.base==null||(r.phase==='up'&&knee>165)){const leg=dist(hipM,ankM);r.base=r.base==null?ank:r.base*0.9+ank*0.1;r.leg=r.leg==null?leg:r.leg*0.9+leg*0.1;}
+    const lift=Math.max(0,(r.base-ank)/Math.max(1,r.leg));
+    const meter=clamp((170-knee)/80,0,1),line=60/80,labels=[{i:25,t:`${kL|0}°`},{i:26,t:`${kR|0}°`}],info=`Lutut ${knee|0}° · Lompat ${Math.round(lift*100)}`;
+    if(r.phase==='land'){if(knee>160&&lift<0.03)r.phase='up';return {neutral:true,cue:'Berdiri, siap lompat lagi!',meter,line,labels,info,q:0};}
+    if(r.phase==='up'){
+      if(knee<130)Object.assign(r,{phase:'down',minK:knee,maxLift:0});
+      else return {neutral:true,cue:'Jongkok, lalu LOMPAT!',meter,line,labels,info,q:0};
+    }
+    let rep=null,cue='',good=false;
+    if(r.phase==='down'){
+      r.minK=Math.min(r.minK,knee);
+      if(lift>0.06)r.phase='air';
+      else if(knee>165){rep={good:false,msg:'Ayo lompat yang tinggi!'};r.phase='up';}
+      cue=r.minK>110?'Jongkok lebih dalam':'Sekarang LOMPAT!';good=r.minK<=110;
+    }
+    if(r.phase==='air'){
+      r.maxLift=Math.max(r.maxLift,lift);S.best=S.best==null?r.maxLift:Math.max(S.best,r.maxLift);
+      cue='Terbang! 🚀';good=true;
+      if(lift<0.02){const ok=r.minK<=110&&r.maxLift>=0.06;rep={good:ok,msg:ok?'Hebat!':'Jongkok lebih dalam dulu'};r.phase='land';}
+    }
+    return {good,cue,meter:r.phase==='air'?1:meter,line,labels,info,q:good?clamp(0.5+(r.maxLift||0)*4,0,1):0.3,rep};
+  }},
+plank:{cat:'kuat',name:'Buaya Lurus (Plank)',emoji:'🐊',mode:'hold',def:20,view:'HP di SAMPING',desc:'Perut & punggung kuat, badan seimbang waktu menendang.',
+  tips:['Taruh HP di lantai/kursi di SAMPING kamu, 2 langkah besar','Tumpu siku dan ujung kaki','Badan lurus seperti papan dari kepala sampai kaki','Jangan melorot, jangan nungging'],
+  need:[[11,23,27],[12,24,28]],
+  eval(P,S){
+    const useL=vis(P,[11,23,27])>=vis(P,[12,24,28]);
+    const [sh,hp,an]=useL?[11,23,27]:[12,24,28];
+    const body=sm('b',ang(P[sh],P[hp],P[an])),flat=sm('f',fromVert(P[hp],P[sh]));
+    const a=P[sh],c=P[an],h=P[hp],t=clamp((h.x-a.x)/((c.x-a.x)||1),0,1),sag=h.y>a.y+(c.y-a.y)*t;
+    let cue=null,neutral=false;
+    if(flat<55){cue='Ayo posisi plank, badan sejajar lantai';neutral=true;}
+    else if(body<165)cue=sag?'Perut naik, jangan melorot':'Pantat turun, badan lurus';
+    const good=!cue;
+    return {good,neutral,cue:good?'Lurus kayak buaya! Tahan…':cue,meter:clamp((body-130)/50,0,1),line:35/50,
+      labels:[{i:hp,t:`${body|0}°`}],info:`Badan ${body|0}° (180 = lurus)`,q:good?clamp((body-150)/30,0.5,1):0.2};
+  }},
+bridge:{cat:'kuat',name:'Jembatan (Glute Bridge)',emoji:'🌉',mode:'reps',def:10,view:'HP di SAMPING',desc:'Pantat & pinggul kuat = tendangan makin bertenaga.',
+  tips:['Taruh HP di lantai di SAMPING kamu, 2 langkah besar','Tidur telentang, lutut ditekuk, telapak kaki di lantai','Angkat pinggul tinggi sampai badan lurus, tahan 1 detik','Turun pelan = 1 hitungan'],
+  need:[[11,23,25],[12,24,26]],bestLabel:'Pinggul tertinggi',fmtBest:v=>`${v|0}° (180 = lurus)`,
+  eval(P,S,dt){
+    const useL=vis(P,[11,23,25])>=vis(P,[12,24,26]);
+    const [sh,hp,kn]=useL?[11,23,25]:[12,24,26];
+    const hipA=sm('h',ang(P[sh],P[hp],P[kn])),lying=sm('ly',fromVert(P[hp],P[sh]))>50;
+    const r=S.r||(S.r={phase:'down'});
+    const meter=clamp((hipA-120)/55,0,1),line=40/55,labels=[{i:hp,t:`${hipA|0}°`}],info=`Pinggul ${hipA|0}°`;
+    if(!lying)return {neutral:true,cue:'Tidur telentang, lutut ditekuk',meter,line,labels,info,q:0};
+    if(r.phase==='down'){
+      if(hipA>=152)Object.assign(r,{phase:'up',maxA:hipA,topT:0});
+      else return {neutral:true,cue:'Angkat pinggul ke atas!',meter,line,labels,info,q:0};
+    }
+    r.maxA=Math.max(r.maxA,hipA);if(hipA>=160)r.topT+=dt;
+    S.best=S.best==null?r.maxA:Math.max(S.best,r.maxA);
+    let rep=null;
+    if(hipA<140){const ok=r.maxA>=160&&r.topT>=0.8;rep={good:ok,msg:ok?'Bagus!':(r.maxA<160?'Pinggul lebih tinggi':'Tahan sebentar di atas')};r.phase='down';}
+    const good=hipA>=160;
+    return {good,cue:!good?'Dorong pinggul lebih tinggi':(r.topT<0.8?'Tahan… 1, 2':'Turun pelan'),meter,line,labels,info,q:good?meter:meter*0.5,rep};
+  }},
+samping:{cat:'kuat',name:'Angkat Kaki Samping',emoji:'🦵',mode:'reps',def:10,view:'HP di depan',desc:'Otot samping pinggul kuat untuk Yeop Chagi.',
+  tips:['Taruh HP di depan, 2–3 langkah besar','Berdiri tegak, boleh pegangan tembok/kursi','Angkat kaki lurus ke samping minimal setengah tinggi, lalu turun pelan','Gantian kiri dan kanan'],
+  need:BOTH,bestLabel:'Angkatan tertinggi',fmtBest:v=>`${v|0}°`,
+  eval(P,S){
+    const isL=P[27].y<P[28].y,sd=isL?'L':'R';
+    const [hk,kk,ak]=isL?[23,25,27]:[24,26,28];
+    const h=sm('h'+sd,fromDown(P[hk],P[ak])),kn=sm('kn'+sd,ang(P[hk],P[kk],P[ak])),lean=sm('lean',torso(P));
+    const r=S.r||(S.r={phase:'down'});
+    const meter=clamp(h/90,0,1),line=45/90,labels=[{i:ak,t:`${h|0}°`}],info=`Kaki ${h|0}° · ${isL?'Kiri':'Kanan'}`;
+    if(r.phase==='down'){
+      if(h>25)Object.assign(r,{phase:'up',isL,maxH:h,minK:kn,maxL:lean});
+      else return {neutral:true,cue:'Angkat kaki ke samping!',meter,line,labels,info,q:0};
+    }
+    r.maxH=Math.max(r.maxH,h);r.minK=Math.min(r.minK,kn);r.maxL=Math.max(r.maxL,lean);
+    S.best=S.best==null?r.maxH:Math.max(S.best,r.maxH);
+    let rep=null;
+    if(h<15){const ok=r.maxH>=45&&r.minK>=145&&r.maxL<=25;rep={good:ok,side:r.isL?'kiri':'kanan',msg:ok?'Bagus!':(r.maxH<45?'Angkat lebih tinggi':r.minK<145?'Lutut lurus ya':'Badan jangan miring')};r.phase='down';}
+    let cue;if(lean>25)cue='Badan jangan miring';else if(kn<145)cue='Lutut lurus ya';else if(h<45)cue='Lebih tinggi!';else cue='Mantap! Turun pelan';
+    const good=h>=45&&kn>=145&&lean<=25;
+    return {good,cue,meter,line,labels,info,q:good?clamp(h/90,0.5,1):0.3,rep};
+  }},
+flamingo:{cat:'kuat',name:'Flamingo (Lipat Tendangan)',emoji:'🦩',mode:'hold',def:20,view:'HP di SAMPING',sides:true,desc:'Angkat lutut & tahan. Keseimbangan dan chamber tendangan makin mantap.',
+  tips:['Taruh HP di SAMPING kamu, 2–3 langkah besar','Angkat satu lutut setinggi pinggang (posisi siap menendang)','Kaki tumpuan lurus, badan tegak, TAHAN','Nanti ada aba-aba "Ganti kaki!"'],
+  need:BOTH,thr:0.3,bestLabel:'Lutut tertinggi',fmtBest:v=>`${v|0}° (90° = setinggi pinggang)`,
+  eval(P,S,dt){
+    const isL=P[25].y<P[26].y,sd=isL?'L':'R';
+    const [hk,kk,hs,ks,as]=isL?[23,25,24,26,28]:[24,26,23,25,27];
+    const th=sm('t'+sd,fromDown(P[hk],P[kk])),st=sm('s'+sd,ang(P[hs],P[ks],P[as])),lean=sm('lean',torso(P));
+    let cue=null,neutral=false;
+    if(th<45){cue='Angkat lutut, jadi flamingo!';neutral=true;}
+    else if(th<75)cue='Lutut lebih tinggi, setinggi pinggang';
+    else if(st<150)cue='Kaki tumpuan lurus';
+    else if(lean>20)cue='Badan tegak ya';
+    const good=!cue;
+    if(th>=45)S.best=S.best==null?th:Math.max(S.best,th);
+    S.side=S.side||{kiri:0,kanan:0};if(good)S.side[isL?'kiri':'kanan']+=dt;
+    return {good,neutral,cue:good?'Flamingo hebat! Tahan…':cue,meter:clamp(th/110,0,1),line:75/110,labels:[{i:kk,t:`${th|0}°`}],
+      info:`Lutut ${th|0}° · ${isL?'Kiri':'Kanan'}`,q:good?clamp(0.6+(th-75)/40*0.4,0,1):clamp(th/150,0,0.5)};
+  }},
+/* ===== KELENTURAN ===== */
+cossack:{cat:'lentur',name:'Cossack Ninja',emoji:'🥷',mode:'reps',def:10,view:'HP di depan',desc:'Geser kiri-kanan kayak ninja. Pinggul & paha dalam jadi lentur.',
+  tips:['Taruh HP di depan, 2–3 langkah besar. Kaki terbuka lebar harus kelihatan','Geser badan ke satu kaki dan tekuk dalam, kaki satunya lurus','Naik ke tengah, lalu ganti sisi','Hitungan cuma nambah kalau gerakannya benar'],
+  need:BOTH,bestLabel:'Tekukan terdalam (sudut lutut)',fmtBest:v=>`${v|0}°`,
+  eval(P,S){
+    const kL=sm('kL',ang(P[23],P[25],P[27])),kR=sm('kR',ang(P[24],P[26],P[28]));
+    const isL=kL<kR,bent=Math.min(kL,kR),str=Math.max(kL,kR),gap=str-bent,lean=sm('lean',torso(P));
+    const r=S.r||(S.r={phase:'up'});
+    const meter=clamp((170-bent)/120,0,1),line=85/120,labels=[{i:25,t:`${kL|0}°`},{i:26,t:`${kR|0}°`}],info=`Tekuk ${bent|0}° · Lurus ${str|0}°`;
+    const startDown=()=>Object.assign(r,{phase:'down',isL,minB:bent,minS:str,maxL:lean});
+    const judge=()=>{const ok=r.minB<=85&&r.minS>=150&&r.maxL<=40;return {good:ok,side:r.isL?'kiri':'kanan',msg:ok?'Bagus!':(r.minB>85?'Kurang dalam':r.minS<150?'Kaki lurusnya ditekuk':'Badan terlalu bungkuk')};};
+    if(r.phase==='up'){if(bent<115&&gap>25)startDown();else return {neutral:true,cue:'Buka kaki lebar, geser ke samping',meter,line,labels,info,q:0};}
+    let rep=null;
+    if(isL!==r.isL&&bent<115&&gap>25){rep=judge();startDown();}
+    else if(bent>150){rep=judge();r.phase='up';}
+    else{r.minB=Math.min(r.minB,bent);r.minS=Math.min(r.minS,str);r.maxL=Math.max(r.maxL,lean);}
+    S.best=S.best==null?bent:Math.min(S.best,bent);
+    let cue;if(lean>40)cue='Dada tegak, jangan bungkuk';else if(str<150)cue='Luruskan kaki yang satunya';else if(bent>85)cue='Turun lebih dalam';else cue='Mantap! Naik, ganti sisi';
+    const good=bent<=85&&str>=150&&lean<=40;
+    return {good,cue,meter,line,labels,info,q:good?meter:meter*0.5,rep};
+  }},
+split:{cat:'lentur',name:'Split Bintang',emoji:'⭐',mode:'hold',def:30,view:'HP di depan',desc:'Buka kaki lebar seperti bintang. Tendangan makin tinggi!',
+  tips:['Taruh HP di depan, 2–3 langkah besar','Buka kaki lebar ke samping pelan-pelan, lutut lurus','Boleh tangan di lantai untuk bantu','Jangan dipaksa sampai sakit. Napas pelan ya'],
+  need:BOTH,bestLabel:'Bukaan kaki terlebar',fmtBest:v=>`${v|0}°`,
+  eval(P,S){
+    const sp=sm('sp',ang(P[27],mid(P[23],P[24]),P[28]));
+    const kL=sm('kL',ang(P[23],P[25],P[27])),kR=sm('kR',ang(P[24],P[26],P[28])),kmin=Math.min(kL,kR);
+    let cue=null,neutral=false;
+    if(sp<50){cue='Buka kaki lebar ke samping pelan-pelan';neutral=true;}
+    else if(kmin<155)cue='Lutut lurus ya';
+    else if(sp<90)cue='Lebih lebar sedikit lagi';
+    const good=!cue;
+    if(kmin>=155)S.best=S.best==null?sp:Math.max(S.best,sp);
+    return {good,neutral,cue:good?(sp>=120?'Wow lentur sekali! Tahan…':'Bagus, tahan… napas pelan'):cue,meter:clamp(sp/150,0,1),line:90/150,
+      labels:[{i:23,t:`${sp|0}°`}],info:`Bukaan kaki ${sp|0}°`,q:good?clamp(0.5+(sp-90)/60*0.5,0,1):clamp(sp/180,0,0.5)};
+  }},
+lunge:{cat:'lentur',name:'Lunge Ksatria',emoji:'⚔️',mode:'hold',def:30,view:'HP di SAMPING',sides:true,desc:'Berlutut seperti ksatria. Melenturkan pinggul depan (hip flexor).',
+  tips:['Taruh HP di SAMPING kamu, 2 langkah besar','Satu kaki maju (lutut 90°), lutut belakang turun ke lantai','Badan tegak, dorong pinggul pelan ke depan, TAHAN','Nanti ada aba-aba "Ganti kaki!"'],
+  need:BOTH,thr:0.3,bestLabel:'Pinggul paling terbuka',fmtBest:v=>`${v|0}°`,
+  eval(P,S,dt){
+    const fL=P[25].y<P[26].y,sd=fL?'L':'R';
+    const [hf,kf,af,hb,kb]=fL?[23,25,27,24,26]:[24,26,28,23,25];
+    const shM=mid(P[11],P[12]);
+    const fk=sm('fk'+sd,ang(P[hf],P[kf],P[af])),hipE=sm('he'+sd,ang(shM,P[hb],P[kb])),lean=sm('lean',fromVert(P[hb],shM));
+    const kneeLow=P[kb].y>P[hf].y+dist(P[hf],P[kf])*0.4;
+    let cue=null,neutral=false;
+    if(!kneeLow||fk>140){cue='Satu kaki maju, lutut belakang turun';neutral=true;}
+    else if(fk<65||fk>115)cue='Lutut depan tekuk siku-siku';
+    else if(lean>20)cue='Badan tegak ya';
+    else if(hipE<145)cue='Dorong pinggul ke depan';
+    const good=!cue;
+    if(good)S.best=S.best==null?hipE:Math.max(S.best,hipE);
+    S.side=S.side||{kiri:0,kanan:0};if(good)S.side[fL?'kiri':'kanan']+=dt;
+    return {good,neutral,cue:good?'Ksatria hebat! Tahan…':cue,meter:clamp((hipE-110)/70,0,1),line:35/70,
+      labels:[{i:kf,t:`${fk|0}°`},{i:hb,t:`${hipE|0}°`}],info:`Lutut depan ${fk|0}° · Pinggul ${hipE|0}°`,q:good?clamp((hipE-140)/35,0.5,1):0.3};
+  }},
+kupu:{cat:'lentur',name:'Kupu-kupu',emoji:'🦋',mode:'hold',def:30,view:'HP di depan',desc:'Duduk, tempel telapak kaki, turunkan lutut seperti sayap.',
+  tips:['Taruh HP di lantai/kursi di depan, 2 langkah besar','Duduk tegak, tempelkan kedua telapak kaki','Turunkan lutut pelan-pelan ke lantai seperti sayap kupu-kupu','Tahan sambil napas pelan'],
+  need:BOTH,thr:0.4,bestLabel:'Lutut paling rendah',fmtBest:v=>`${v|0}° (makin kecil makin rata)`,
+  eval(P,S){
+    const hw=Math.max(1,dist(P[23],P[24]));
+    const el=(h,k)=>Math.atan2(P[h].y-P[k].y,Math.abs(P[k].x-P[h].x)||1)*180/Math.PI;
+    const e=sm('e',(el(23,25)+el(24,26))/2),kSp=sm('ks',Math.abs(P[25].x-P[26].x)/hw),feet=sm('ft',dist(P[27],P[28])/hw),lean=sm('lean',torso(P));
+    let cue=null,neutral=false;
+    if(kSp<1.8){cue='Duduk, tempel telapak kaki, lutut buka';neutral=true;}
+    else if(feet>1.6)cue='Telapak kaki ditempel ya';
+    else if(lean>20)cue='Punggung tegak';
+    else if(e>25)cue='Turunkan lutut pelan-pelan';
+    const good=!cue;
+    if(!neutral)S.best=S.best==null?e:Math.min(S.best,e);
+    return {good,neutral,cue:good?(e<=10?'Sayap kupu-kupu sempurna!':'Bagus, tahan… napas pelan'):cue,meter:clamp((60-e)/60,0,1),line:35/60,
+      labels:[{i:25,t:`${e|0}°`}],info:`Tinggi lutut ${e|0}° (0 = rata)`,q:good?clamp((40-e)/40,0.5,1):0.3};
+  }},
+yeop:{cat:'lentur',name:'Patung Yeop Chagi',emoji:'🗿',mode:'hold',def:20,view:'HP di depan',sides:true,desc:'Tendang ke samping lalu diam seperti patung. Lentur + seimbang!',
+  tips:['Taruh HP di depan, 2–3 langkah besar','Tendang ke arah samping (kiri/kanan layar), bukan ke kamera','Angkat kaki minimal setinggi pinggang, lalu TAHAN','Boleh pegangan tembok/kursi. Nanti ada aba-aba "Ganti kaki!"'],
+  need:BOTH,bestLabel:'Tendangan tertinggi',fmtBest:v=>`${v|0}° (90° = setinggi pinggang)`,
+  eval(P,S,dt){
+    const isL=P[27].y<P[28].y,sd=isL?'L':'R';
+    const [hk,kk,ak,hs,ks,as]=isL?[23,25,27,24,26,28]:[24,26,28,23,25,27];
+    const h=sm('h'+sd,fromDown(P[hk],P[ak])),kick=sm('kk'+sd,ang(P[hk],P[kk],P[ak])),stand=sm('sk'+sd,ang(P[hs],P[ks],P[as]));
+    let cue=null,neutral=false;
+    if(h<35){cue='Tendang ke samping, lalu tahan';neutral=true;}
+    else if(h<70)cue='Angkat lebih tinggi!';
+    else if(kick<150)cue='Luruskan kaki tendangan';
+    else if(stand<145)cue='Kaki tumpuan lurus';
+    const good=!cue;
+    if(h>=35)S.best=S.best==null?h:Math.max(S.best,h);
+    S.side=S.side||{kiri:0,kanan:0};if(good)S.side[isL?'kiri':'kanan']+=dt;
+    return {good,neutral,cue:good?(h>=90?'Patung juara! Tahan…':'Bagus! Coba lebih tinggi'):cue,meter:clamp(h/120,0,1),line:70/120,
+      labels:[{i:ak,t:`${h|0}°`}],info:`Tinggi kaki ${h|0}° · ${isL?'Kiri':'Kanan'}`,q:good?clamp(0.6+(h-70)/50*0.4,0,1):clamp(h/140,0,0.5)};
+  }}
+};
+const unitOf=e=>e.mode==='hold'?'detik':'kali';
+const targetTxt=(e,t)=>e.mode==='hold'?`Tahan ${t} detik`:`${t}x benar`;
+
+
+/* ---------- 9 latihan tambahan ---------- */
+Object.assign(EX,{
+pushup:{cat:'kuat',name:'Push-up Roket',emoji:'🚀',mode:'reps',def:8,view:'HP di SAMPING',desc:'Tangan & dada kuat. Boleh pakai lutut kalau belum kuat.',
+  tips:['Taruh HP di lantai di SAMPING kamu, 2 langkah besar','Tangan selebar bahu, badan lurus dari kepala ke lutut','Turun sampai dada dekat lantai, lalu dorong naik','Boleh tumpuan lutut kalau masih berat'],
+  need:[[11,13,15,23,25],[12,14,16,24,26]],bestLabel:'Turun terdalam (sudut siku)',fmtBest:v=>`${v|0}°`,
+  eval(P,S){
+    const useL=vis(P,[11,13,15,23,25])>=vis(P,[12,14,16,24,26]);
+    const [sh,el,wr,hp,kn]=useL?[11,13,15,23,25]:[12,14,16,24,26];
+    const elb=sm('e',ang(P[sh],P[el],P[wr])),body=sm('b',ang(P[sh],P[hp],P[kn])),flat=sm('f',fromVert(P[hp],P[sh]));
+    const r=S.r||(S.r={phase:'up'});
+    const meter=clamp((170-elb)/90,0,1),line=70/90,labels=[{i:el,t:`${elb|0}°`}],info=`Siku ${elb|0}° · Badan ${body|0}°`;
+    if(flat<50)return {neutral:true,cue:'Ayo posisi push-up, badan sejajar lantai',meter,line,labels,info,q:0};
+    if(r.phase==='up'){if(elb<125)Object.assign(r,{phase:'down',minE:elb,minB:body});else return {neutral:true,cue:'Turun pelan, dada ke lantai',meter,line,labels,info,q:0};}
+    r.minE=Math.min(r.minE,elb);r.minB=Math.min(r.minB,body);S.best=S.best==null?elb:Math.min(S.best,elb);
+    let rep=null;
+    if(elb>150){const ok=r.minE<=100&&r.minB>=145;rep={good:ok,msg:ok?'Bagus!':(r.minE>100?'Turun lebih rendah':'Badan lurus ya')};r.phase='up';}
+    const good=elb<=100&&body>=145;
+    return {good,cue:body<145?'Badan lurus, jangan nungging':elb>100?'Turun lagi, dada dekat lantai':'Mantap! Dorong naik!',meter,line,labels,info,q:good?meter:meter*0.5,rep};
+  }},
+situp:{cat:'kuat',name:'Sit-up Kura-kura',emoji:'🐢',mode:'reps',def:10,view:'HP di SAMPING',desc:'Perut kuat = tendangan lebih bertenaga dan seimbang.',
+  tips:['Taruh HP di lantai di SAMPING kamu, 2 langkah besar','Tidur telentang, lutut ditekuk, tangan di dada','Bangun sampai dada dekat lutut, lalu turun pelan','Turun lagi sampai punggung di lantai = 1 hitungan'],
+  need:[[11,23,25],[12,24,26]],bestLabel:'Bangun tertinggi (sudut pinggul)',fmtBest:v=>`${v|0}° (makin kecil makin tinggi)`,
+  eval(P,S){
+    const useL=vis(P,[11,23,25])>=vis(P,[12,24,26]);
+    const [sh,hp,kn]=useL?[11,23,25]:[12,24,26];
+    const a=sm('a',ang(P[sh],P[hp],P[kn]));
+    const r=S.r||(S.r={phase:'down'});
+    const meter=clamp((140-a)/80,0,1),line=60/80,labels=[{i:hp,t:`${a|0}°`}],info=`Pinggul ${a|0}°`;
+    if(r.phase==='down'){if(a<105)Object.assign(r,{phase:'up',minA:a});else return {neutral:true,cue:'Tidur, lutut ditekuk, lalu bangun!',meter,line,labels,info,q:0};}
+    r.minA=Math.min(r.minA,a);S.best=S.best==null?a:Math.min(S.best,a);
+    let rep=null;
+    if(a>120){const ok=r.minA<=80;rep={good:ok,msg:ok?'Bagus!':'Bangun lebih tinggi'};r.phase='down';}
+    const good=a<=80;
+    return {good,cue:good?'Mantap! Turun pelan':'Bangun lagi, dada ke lutut',meter,line,labels,info,q:good?meter:meter*0.5,rep};
+  }},
+superman:{cat:'kuat',name:'Superman',emoji:'🦸',mode:'hold',def:15,view:'HP di SAMPING',desc:'Terbang seperti superman! Punggung kuat untuk tendangan.',
+  tips:['Taruh HP di lantai di SAMPING kamu, 2 langkah besar','Tiduran tengkurap, tangan lurus ke depan','Angkat tangan, dada, dan kaki sedikit dari lantai','Tahan seperti sedang terbang!'],
+  need:[[11,15,23,27],[12,16,24,28]],
+  eval(P,S){
+    const useL=vis(P,[11,15,23,27])>=vis(P,[12,16,24,28]);
+    const [sh,wr,hp,an]=useL?[11,15,23,27]:[12,16,24,28];
+    const L=Math.max(1,dist(P[hp],P[an])),flat=sm('f',fromVert(P[hp],P[sh]));
+    const leg=sm('lg',(P[hp].y-P[an].y)/L),arm=sm('ar',(P[sh].y-P[wr].y)/L);
+    let cue=null,neutral=false;
+    if(flat<55){cue='Tiduran tengkurap dulu';neutral=true;}
+    else if(leg<0.06&&arm<0.04){cue='Angkat tangan dan kaki, terbang!';neutral=true;}
+    else if(leg<0.06)cue='Kaki ikut diangkat';
+    else if(arm<0.04)cue='Tangan diangkat lurus ke depan';
+    const good=!cue,lift=clamp((leg+arm)/0.4,0,1);
+    return {good,neutral,cue:good?'Superman terbang! Tahan…':cue,meter:lift,line:0.25,labels:[],info:`Kaki ${Math.round(leg*100)} · Tangan ${Math.round(arm*100)}`,q:good?clamp(0.6+lift*0.4,0,1):0.2};
+  }},
+wallsit:{cat:'kuat',name:'Duduk Kursi Tembok',emoji:'🧱',mode:'hold',def:20,view:'HP di SAMPING',desc:'Punggung nempel tembok, duduk tanpa kursi. Paha super kuat!',
+  tips:['Taruh HP di SAMPING kamu, 2 langkah besar','Sandarkan punggung ke tembok','Turun sampai paha datar seperti duduk di kursi','Tahan, jangan pegangan lutut ya'],
+  need:ONESIDE,bestLabel:'Posisi terendah (sudut lutut)',fmtBest:v=>`${v|0}°`,
+  eval(P,S){
+    const useL=vis(P,[11,23,25,27])>=vis(P,[12,24,26,28]);
+    const [sh,hp,kn,an]=useL?[11,23,25,27]:[12,24,26,28];
+    const knee=sm('k',ang(P[hp],P[kn],P[an])),lean=sm('lean',fromVert(P[hp],P[sh]));
+    let cue=null,neutral=false;
+    if(knee>140){cue='Sandar tembok, lalu turun';neutral=true;}
+    else if(knee>110)cue='Turun lagi, paha datar';
+    else if(knee<70)cue='Terlalu rendah, naik sedikit';
+    else if(lean>25)cue='Punggung tegak nempel tembok';
+    const good=!cue;
+    if(!neutral)S.best=S.best==null?knee:Math.min(S.best,knee);
+    return {good,neutral,cue:good?'Kuat banget! Tahan…':cue,meter:clamp((170-knee)/80,0,1),line:60/80,labels:[{i:kn,t:`${knee|0}°`}],info:`Lutut ${knee|0}°`,q:good?clamp(1-Math.abs(knee-90)/40,0.5,1):0.2};
+  }},
+lari:{cat:'kuat',name:'Lari Lutut Tinggi',emoji:'🏃',mode:'reps',def:20,view:'HP di SAMPING',desc:'Lari di tempat, lutut setinggi pinggang. Tendangan makin cepat!',
+  tips:['Taruh HP di SAMPING kamu, 2–3 langkah besar','Lari di tempat, angkat lutut setinggi pinggang','Gantian kaki kiri dan kanan, makin cepat makin keren','Setiap lutut yang naik tinggi = 1 hitungan'],
+  need:BOTH,thr:0.3,bestLabel:'Lutut tertinggi',fmtBest:v=>`${v|0}° (90° = setinggi pinggang)`,
+  eval(P,S){
+    const r=S.r||(S.r={L:{up:false,max:0},R:{up:false,max:0}});
+    let rep=null,top=0;const labels=[];
+    for(const [sd,hk,kk] of [['L',23,25],['R',24,26]]){
+      const th=sm('t'+sd,fromDown(P[hk],P[kk]),0.5),st=r[sd];top=Math.max(top,th);labels.push({i:kk,t:`${th|0}°`});
+      if(!st.up&&th>40){st.up=true;st.max=th;}
+      else if(st.up){st.max=Math.max(st.max,th);if(th<25){st.up=false;const ok=st.max>=70;if(!rep)rep={good:ok,msg:ok?'Bagus!':'Lutut lebih tinggi!'};}}
+    }
+    S.best=Math.max(S.best||0,top);
+    const good=top>=70;
+    return {good,neutral:top<40,cue:good?'Cepat! Ganti kaki!':top>=40?'Lutut lebih tinggi!':'Angkat lutut bergantian!',meter:clamp(top/100,0,1),line:0.7,labels,info:`Lutut ${top|0}°`,q:good?clamp(top/100,0.5,1):0.3,rep};
+  }},
+jinjit:{cat:'kuat',name:'Jinjit Kelinci',emoji:'🐰',mode:'reps',def:15,view:'HP di SAMPING',desc:'Jinjit naik-turun. Betis kuat, lompatan dan tendangan makin pegas!',
+  tips:['Taruh HP di SAMPING kamu, 2 langkah besar, kaki harus kelihatan jelas','Berdiri tegak, boleh pegangan tembok','Naik jinjit setinggi mungkin, lalu turun pelan','Lutut tetap lurus ya'],
+  need:[[23,25,27,29,31],[24,26,28,30,32]],bestLabel:'Jinjit tertinggi',fmtBest:v=>`${Math.round(v*100)} poin`,
+  eval(P,S){
+    const useL=vis(P,[23,25,27,29,31])>=vis(P,[24,26,28,30,32]);
+    const [hp,kn,an,he,ft]=useL?[23,25,27,29,31]:[24,26,28,30,32];
+    const fl=Math.max(1,dist(P[he],P[ft])),v=sm('v',(P[ft].y-P[an].y)/fl,0.5),knee=sm('k',ang(P[hp],P[kn],P[an]));
+    const r=S.r||(S.r={phase:'down',base:null});
+    if(r.base==null)r.base=v;
+    if(r.phase==='down'&&v-r.base<0.08)r.base=r.base*0.95+v*0.05;
+    const lift=Math.max(0,v-r.base),meter=clamp(lift/0.5,0,1),line=0.3/0.5,info=`Jinjit ${Math.round(lift*100)} · Lutut ${knee|0}°`,labels=[{i:an,t:`${Math.round(lift*100)}`}];
+    if(r.phase==='down'){if(lift>0.15)Object.assign(r,{phase:'up',max:lift,minK:knee});else return {neutral:true,cue:'Naik jinjit setinggi mungkin!',meter,line,labels,info,q:0};}
+    r.max=Math.max(r.max,lift);r.minK=Math.min(r.minK,knee);S.best=Math.max(S.best||0,r.max);
+    let rep=null;
+    if(lift<0.06){const ok=r.max>=0.3&&r.minK>=150;rep={good:ok,msg:ok?'Bagus!':(r.max<0.3?'Jinjit lebih tinggi':'Lutut lurus ya')};r.phase='down';}
+    const good=lift>=0.3&&knee>=150;
+    return {good,cue:knee<150?'Lutut lurus ya':lift<0.3?'Lebih tinggi lagi!':'Mantap! Turun pelan',meter,line,labels,info,q:good?meter:meter*0.5,rep};
+  }},
+jerapah:{cat:'lentur',name:'Lipat Badan Jerapah',emoji:'🦒',mode:'hold',def:30,view:'HP di SAMPING',desc:'Duduk kaki lurus, raih ujung kaki. Paha belakang lentur, tendangan tinggi!',
+  tips:['Taruh HP di lantai di SAMPING kamu, 2 langkah besar','Duduk, kedua kaki lurus ke depan','Bungkukkan badan, tangan meraih ujung kaki','Lutut tetap lurus, tahan sambil napas pelan'],
+  need:ONESIDE,thr:0.4,bestLabel:'Lipatan terdalam (sudut pinggul)',fmtBest:v=>`${v|0}° (makin kecil makin lentur)`,
+  eval(P,S){
+    const useL=vis(P,[11,23,25,27])>=vis(P,[12,24,26,28]);
+    const [sh,hp,kn,an]=useL?[11,23,25,27]:[12,24,26,28];
+    const a=sm('a',ang(P[sh],P[hp],P[an])),knee=sm('k',ang(P[hp],P[kn],P[an])),legFlat=fromVert(P[hp],P[an])>60;
+    let cue=null,neutral=false;
+    if(!legFlat){cue='Duduk dulu, kaki lurus ke depan';neutral=true;}
+    else if(a>85){cue='Bungkuk, raih ujung kaki!';neutral=true;}
+    else if(knee<155)cue='Lutut lurus ya';
+    else if(a>65)cue='Sedikit lagi, raih lebih jauh';
+    const good=!cue;
+    if(legFlat&&knee>=155)S.best=S.best==null?a:Math.min(S.best,a);
+    return {good,neutral,cue:good?(a<=50?'Lentur kayak jerapah! Tahan…':'Bagus, tahan… napas pelan'):cue,meter:clamp((100-a)/60,0,1),line:35/60,labels:[{i:hp,t:`${a|0}°`}],info:`Pinggul ${a|0}° · Lutut ${knee|0}°`,q:good?clamp((80-a)/40,0.5,1):0.3};
+  }},
+apchagi:{cat:'lentur',name:'Patung Ap Chagi',emoji:'🥋',mode:'hold',def:20,view:'HP di SAMPING',sides:true,desc:'Tendangan depan lalu diam seperti patung. Lentur + seimbang!',
+  tips:['Taruh HP di SAMPING kamu, 2–3 langkah besar','Tendang ke depan (ke arah samping layar)','Angkat kaki minimal setinggi pinggang, lalu TAHAN','Boleh pegangan tembok/kursi. Nanti ada aba-aba "Ganti kaki!"'],
+  need:BOTH,thr:0.3,bestLabel:'Tendangan tertinggi',fmtBest:v=>`${v|0}° (90° = setinggi pinggang)`,
+  eval(P,S,dt){
+    const isL=P[27].y<P[28].y,sd=isL?'L':'R';
+    const [hk,kk,ak,hs,ks,as]=isL?[23,25,27,24,26,28]:[24,26,28,23,25,27];
+    const h=sm('h'+sd,fromDown(P[hk],P[ak])),kick=sm('kk'+sd,ang(P[hk],P[kk],P[ak])),stand=sm('sk'+sd,ang(P[hs],P[ks],P[as]));
+    let cue=null,neutral=false;
+    if(h<35){cue='Tendang ke depan, lalu tahan';neutral=true;}
+    else if(h<70)cue='Angkat lebih tinggi!';
+    else if(kick<150)cue='Luruskan kaki tendangan';
+    else if(stand<145)cue='Kaki tumpuan lurus';
+    const good=!cue;
+    if(h>=35)S.best=S.best==null?h:Math.max(S.best,h);
+    S.side=S.side||{kiri:0,kanan:0};if(good)S.side[isL?'kiri':'kanan']+=dt;
+    return {good,neutral,cue:good?(h>=90?'Patung juara! Tahan…':'Bagus! Coba lebih tinggi'):cue,meter:clamp(h/120,0,1),line:70/120,labels:[{i:ak,t:`${h|0}°`}],info:`Tinggi kaki ${h|0}° · ${isL?'Kiri':'Kanan'}`,q:good?clamp(0.6+(h-70)/50*0.4,0,1):clamp(h/140,0,0.5)};
+  }},
+ayun:{cat:'lentur',name:'Ayun Kaki Tinggi',emoji:'🌀',mode:'reps',def:10,view:'HP di SAMPING',desc:'Ayun kaki lurus ke depan setinggi mungkin. Pemanasan tendangan!',
+  tips:['Taruh HP di SAMPING kamu, 2–3 langkah besar','Pegangan tembok/kursi biar seimbang','Ayun kaki LURUS ke depan setinggi mungkin, lalu turun','Gantian kaki kiri dan kanan'],
+  need:BOTH,thr:0.3,bestLabel:'Ayunan tertinggi',fmtBest:v=>`${v|0}°`,
+  eval(P,S){
+    const r=S.r||(S.r={L:{up:false},R:{up:false}});
+    let rep=null,top=0,topK=180;const labels=[];
+    for(const [sd,hk,kk,ak] of [['L',23,25,27],['R',24,26,28]]){
+      const h=sm('h'+sd,fromDown(P[hk],P[ak]),0.5),kn=sm('k'+sd,ang(P[hk],P[kk],P[ak]),0.5),st=r[sd];
+      if(h>top){top=h;topK=kn;}labels.push({i:ak,t:`${h|0}°`});
+      if(!st.up&&h>40){st.up=true;st.max=h;st.minK=kn;}
+      else if(st.up){st.max=Math.max(st.max,h);st.minK=Math.min(st.minK,kn);
+        if(h<25){st.up=false;const ok=st.max>=80&&st.minK>=140;if(!rep)rep={good:ok,msg:ok?'Bagus!':(st.max<80?'Ayun lebih tinggi':'Kaki lurus ya')};}}
+    }
+    S.best=Math.max(S.best||0,top);
+    const good=top>=80&&topK>=140;
+    return {good,neutral:top<40,cue:top<40?'Ayun kaki lurus ke depan!':topK<140?'Kaki lurus ya':top<80?'Lebih tinggi!':'Mantap! Ganti kaki',meter:clamp(top/120,0,1),line:80/120,labels,info:`Ayunan ${top|0}° · Lutut ${topK|0}°`,q:good?clamp(top/120,0.5,1):0.3,rep};
+  }}
+});
+
+
+/* ---------- data dari Dojang HQ ---------- */
+const PT_KEY='dojang_portal_tok';
+const ptMap=()=>{try{return JSON.parse(localStorage.getItem(PT_KEY)||'{}')||{}}catch(e){return{}}};
+let TOKEN='',CLUB={name:'',logo:''},KIDS=[],KID=null,PR=[],PRNOTE='',PRACAK=false,TODAY=[];
+function setKid(k){KID=k||null;PR=(KID&&Array.isArray(KID.pr))?KID.pr:[];if(KID)store.set('ch_last',String(KID.id).toLowerCase());}
+const HK=()=>'ch_hist_'+(KID?String(KID.id).toLowerCase():'x');
+const prOf=k=>PR.find(p=>p.k===k);
+// gerakan yang paling simpel & aman untuk anak (dipakai sebagai pilihan bawaan PR)
+const SIMPEL=['kuda','squat','lompat','plank','bridge','flamingo','lari','jinjit','superman','cossack','kupu','jerapah','split','ayun'];
+function doneToday(){
+  const m={};if(!KID)return m;
+  const sid=String(KID.id).toLowerCase();
+  for(const r of TODAY)if(String(r.sid).toLowerCase()===sid&&r.skor>=40)m[r.ex]=Math.max(m[r.ex]||0,r.skor);
+  const loc=store.get('ch_done_'+tglLokal()+'_'+sid,{});
+  for(const k in loc)m[k]=Math.max(m[k]||0,loc[k]);
+  return m;
+}
+
+/* ---------- suara & bunyi ---------- */
+let voiceOn=store.get('ch_voice',true),lastSpoke=0,lastText='',idVoice=null;
+function pickVoice(){try{idVoice=speechSynthesis.getVoices().find(v=>/^id/i.test(v.lang))||null}catch(e){}}
+try{pickVoice();speechSynthesis.onvoiceschanged=pickVoice}catch(e){}
+function say(t,force){
+  if(!voiceOn||!('speechSynthesis' in window)||!t)return;
+  const now=performance.now();
+  if(!force&&(now-lastSpoke<2800||(t===lastText&&now-lastSpoke<6000)))return;
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t.replace(/[🚀⭐]/g,''));u.lang='id-ID';if(idVoice)u.voice=idVoice;u.rate=1.05;u.pitch=1.15;speechSynthesis.speak(u);}catch(e){}
+  lastSpoke=now;lastText=t;
+}
+let AC=null;
+function unlockAudio(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();}catch(e){}}
+function beep(ok,len=0.22){try{if(!AC)return;const o=AC.createOscillator(),g=AC.createGain();o.type='triangle';o.frequency.value=ok?880:220;o.connect(g);g.connect(AC.destination);
+  g.gain.setValueAtTime(0.3,AC.currentTime);g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+len);o.start();o.stop(AC.currentTime+len);}catch(e){}}
+function confetti(){const b=document.createElement('div');b.className='conf';for(let i=0;i<80;i++){const d=document.createElement('i');d.style.left=Math.random()*100+'%';d.style.background=`hsl(${Math.random()*360|0},90%,60%)`;d.style.animationDelay=(Math.random()*0.8).toFixed(2)+'s';d.style.animationDuration=(2+Math.random()*1.6).toFixed(2)+'s';b.appendChild(d);}document.body.appendChild(b);setTimeout(()=>b.remove(),5000);}
+
+/* ---------- model AI ---------- */
+const lmCache={};
+function loadModel(type){
+  if(lmCache[type])return lmCache[type];
+  const p=(async()=>{
+    const {PoseLandmarker,FilesetResolver}=await import(CDN+'/vision_bundle.mjs');
+    const fs=await FilesetResolver.forVisionTasks(CDN+'/wasm');
+    const opt=d=>({baseOptions:{modelAssetPath:MODELS[type],delegate:d},runningMode:'VIDEO',numPoses:1,minPoseDetectionConfidence:0.5,minPosePresenceConfidence:0.5,minTrackingConfidence:0.5});
+    try{return await PoseLandmarker.createFromOptions(fs,opt('GPU'));}catch(e){return await PoseLandmarker.createFromOptions(fs,opt('CPU'));}
+  })();
+  lmCache[type]=p;p.catch(()=>{delete lmCache[type]});return p;
+}
+
+/* ---------- kamera ---------- */
+const video=$('#vid'),cv=$('#cv'),cx=cv.getContext('2d');
+let stream=null,mirror=true,wakeLock=null;
+async function startCam(facing){
+  stopCam();
+  stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:facing,width:{ideal:1280},height:{ideal:720}}});
+  video.srcObject=stream;await video.play();
+  mirror=facing==='user';video.classList.toggle('mirror',mirror);
+}
+function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}video.srcObject=null;}
+async function wake(){try{wakeLock=await navigator.wakeLock.request('screen')}catch(e){}}
+function unwake(){try{wakeLock&&wakeLock.release()}catch(e){}wakeLock=null;}
+
+/* ---------- gambar kerangka ---------- */
+const CONN=[[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,29],[29,31],[27,31],[28,30],[30,32],[28,32]];
+const JOINTS=[0,11,12,13,14,15,16,23,24,25,26,27,28,29,30,31,32];
+function drawSkel(c,P,W,mir,color,labels){
+  const X=p=>mir?W-p.x:p.x,lw=Math.max(4,W/150);
+  c.lineCap='round';c.lineWidth=lw;c.strokeStyle=color;
+  for(const[a,b]of CONN){if(P[a].v<0.35||P[b].v<0.35)continue;c.beginPath();c.moveTo(X(P[a]),P[a].y);c.lineTo(X(P[b]),P[b].y);c.stroke();}
+  c.fillStyle='#fff';
+  for(const i of JOINTS){if(P[i].v<0.35)continue;c.beginPath();c.arc(X(P[i]),P[i].y,i===0?lw*2:lw*1.1,0,7);c.fill();}
+  if(labels){const fs=Math.max(18,W/26);c.font=`800 ${fs}px system-ui,sans-serif`;c.lineWidth=fs/5;c.strokeStyle='#000';c.fillStyle='#fff';
+    for(const l of labels){const p=P[l.i];if(!p||p.v<0.35)continue;const x=X(p)+fs*0.6,y=p.y-fs*0.4;c.strokeText(l.t,x,y);c.fillText(l.t,x,y);}}
+}
+function snap(P,color,labels){
+  try{const W=video.videoWidth,H=video.videoHeight,s=Math.min(1,360/W);
+    const c=document.createElement('canvas');c.width=W*s|0;c.height=H*s|0;const x=c.getContext('2d');
+    x.save();if(mirror){x.translate(c.width,0);x.scale(-1,1);}x.drawImage(video,0,0,c.width,c.height);x.restore();
+    x.save();x.scale(s,s);drawSkel(x,P,W,mirror,color,labels);x.restore();
+    S.snap=c.toDataURL('image/jpeg',0.62);}catch(e){}
+}
+
+/* ---------- sesi latihan ---------- */
+let cur=null,S=null,lm=null,running=false,lastVT=-1,lastP=null;
+const newSession=t=>({phase:'pos',target:t,visT:0,lostT:0,posSaid:0,activeT:0,goodT:0,qSum:0,reps:[],faults:{},best:null,snap:null,snapQ:-1,snapT:0,lastT:0,mile:0,five:false,sw:false});
+const elCue=$('#cue'),elFill=$('#mFill'),elLine=$('#mLine'),elOv=$('#ov');
+let cueTxt='',cueKind='';
+function setCue(t,k){if(t!==cueTxt){elCue.textContent=t||'';cueTxt=t;}if(k!==cueKind){elCue.className=k||'';cueKind=k;}}
+function setMeter(m,line,k){elFill.style.height=(m*100).toFixed(0)+'%';elFill.className=k||'';elLine.style.bottom=(line*100).toFixed(0)+'%';}
+function setOv(t,num){elOv.textContent=t;elOv.className=num?'num':'';}
+function flash(ok){const st=$('#stage');st.classList.remove('fg','fb');void st.offsetWidth;st.classList.add(ok?'fg':'fb');setTimeout(()=>st.classList.remove('fg','fb'),300);}
+function updHud(){
+  const e=EX[cur];
+  if(e.mode==='hold'){
+    $('#big').innerHTML=`${Math.floor(S.goodT)}<small> / ${S.target} dtk</small>`;
+    $('#sub').textContent=e.sides&&S.side?`kiri ${S.side.kiri|0} dtk · kanan ${S.side.kanan|0} dtk`:'waktu dengan posisi benar';
+  }else{
+    const g=S.reps.filter(r=>r.good);
+    $('#big').innerHTML=`${g.length}<small> / ${S.target}</small>`;
+    let sub=`benar · total ${S.reps.length} gerakan`;
+    if(cur==='cossack'||cur==='samping')sub+=` · kiri ${g.filter(r=>r.side==='kiri').length} · kanan ${g.filter(r=>r.side==='kanan').length}`;
+    $('#sub').textContent=sub;
+  }
+}
+
+function frame(){
+  if(!running)return;
+  requestAnimationFrame(frame);
+  if(video.readyState<2||!video.videoWidth)return;
+  if(video.currentTime===lastVT)return;lastVT=video.currentTime;
+  const now=performance.now();
+  let res;try{res=lm.detectForVideo(video,now)}catch(e){return}
+  const W=video.videoWidth,H=video.videoHeight;
+  if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H;}
+  cx.clearRect(0,0,W,H);
+  const dt=S.lastT?Math.min(0.25,(now-S.lastT)/1000):0;S.lastT=now;
+  const raw=res&&res.landmarks&&res.landmarks[0],e=EX[cur],thr=e.thr||0.5;
+  let P=null,visible=false;
+  if(raw){
+    P=raw.map(p=>({x:p.x*W,y:p.y*H,v:p.visibility==null?1:p.visibility}));
+    visible=e.need.some(set=>set.every(i=>P[i].v>thr&&raw[i].x>-0.02&&raw[i].x<1.02&&raw[i].y>-0.02&&raw[i].y<1.02));
+    lastP=P;
+  }
+  if(S.phase==='pos'){
+    if(P)drawSkel(cx,P,W,mirror,'#ffffffaa');
+    if(visible){S.visT+=dt;setCue('Bagus, diam sebentar…','g');if(S.visT>1.2){S.phase='count';S.cT=now;S.lastN=0;}}
+    else{S.visT=0;const m=P?'Mundur sedikit, badanmu harus kelihatan semua':'Ayo berdiri di depan kamera';setCue(m,'w');if(now-S.posSaid>7000){say(m,true);S.posSaid=now;}}
+    return;
+  }
+  if(S.phase==='count'){
+    if(P)drawSkel(cx,P,W,mirror,'#ffffffaa');
+    setCue('','');
+    const n=3-Math.floor((now-S.cT)/1000);
+    if(n>=1){setOv(String(n),true);if(n!==S.lastN){S.lastN=n;say(String(n),true);beep(true,0.08);}}
+    else{setOv('');S.phase='act';say('Mulai!',true);}
+    return;
+  }
+  if(!visible){
+    S.lostT+=dt;if(P)drawSkel(cx,P,W,mirror,'#94a3b8');
+    if(S.lostT>0.6){setCue('Badanmu keluar kamera, mundur sedikit','w');say('Mundur sedikit ya');}
+    return;
+  }
+  S.lostT=0;
+  const o=e.eval(P,S,dt);
+  const k=o.neutral?'n':o.good?'g':'w',col=o.neutral?'#e2e8f0':o.good?'#22c55e':'#f59e0b';
+  drawSkel(cx,P,W,mirror,col,o.labels);
+  setCue(o.cue,k);setMeter(o.meter,o.line,k);$('#info').textContent=o.info;
+  S.activeT+=dt;
+  if(e.mode==='hold'){
+    S.qSum+=o.q*dt;
+    if(o.good){
+      S.goodT+=dt;
+      const left=S.target-S.goodT,m=Math.floor(S.goodT/10);
+      if(e.sides&&!S.sw&&S.goodT>=S.target/2){S.sw=true;say('Ganti kaki!',true);flash(true);}
+      else if(left<=5&&!S.five&&S.target>8){S.five=true;say('Lima detik lagi!',true);}
+      else if(m>S.mile&&left>5){S.mile=m;say(`${m*10} detik`,true);}
+    }else if(o.cue&&!o.neutral)S.faults[o.cue]=(S.faults[o.cue]||0)+dt;
+    if(S.goodT>=S.target){updHud();say('Selesai! Kamu hebat!',true);beep(true,0.4);return finish();}
+  }else if(o.rep){
+    S.reps.push(o.rep);
+    const g=S.reps.filter(r=>r.good).length;
+    beep(o.rep.good);flash(o.rep.good);
+    if(o.rep.good)say(String(g),true);else{say(o.rep.msg,true);S.faults[o.rep.msg]=(S.faults[o.rep.msg]||0)+1;}
+    if(g>=S.target){updHud();setTimeout(()=>say('Selesai! Kamu hebat!',true),700);return finish();}
+  }
+  if(o.cue&&!o.good){
+    const wait=o.neutral?2000:900;
+    if(o.cue!==S.cc){S.cc=o.cue;S.ccT=now;}else if(now-S.ccT>wait)say(o.cue);
+  }else S.cc=null;
+  if(o.q>S.snapQ+0.02&&now-S.snapT>400){S.snapQ=o.q;S.snapT=now;snap(P,col,o.labels);}
+  updHud();
+}
+
+/* ---------- gamifikasi ---------- */
+const LVL=['Anak Macan','Macan Muda','Macan Lincah','Macan Kuat','Macan Juara','Raja Macan'];
+function gameStats(){
+  const h=store.get(HK(),[]);
+  const stars=h.reduce((s,x)=>s+(x.st||0),0);
+  const days=new Set(h.map(x=>tglLokal(x.t)));
+  let streak=0,d=Date.now();
+  if(!days.has(tglLokal(d)))d-=864e5;
+  while(days.has(tglLokal(d))){streak++;d-=864e5;}
+  const lvl=1+Math.floor(stars/10);
+  return {stars,streak,lvl,title:LVL[Math.min(LVL.length-1,lvl-1)]};
+}
+
+
+
+/* ---------- layar ---------- */
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));window.scrollTo(0,0);}
+const modelType=()=>$('#sAcc').checked?'full':'lite';
+function setLogo(img,src){if(src){img.src=src;img.style.display='block';}else img.style.display='none';}
+function exCard(k,e,dn){
+  const p=prOf(k),done=dn[k]!=null;
+  return `<div class="ex" style="--c:var(--${e.cat})" data-act="pick" data-ex="${k}">${p&&done?'<span class="done">✅</span>':''}<div class="e">${e.emoji}</div><b>${esc(e.name)}</b><div class="d">${esc(e.desc)}</div><div class="chips"><span class="chip">${e.mode==='hold'?'⏱ Tahan':'🔁 Hitung'}</span><span class="chip">📱 ${e.view.replace('HP di ','')}</span>${p?'<span class="chip" style="background:#fde68a">📌 PR</span>':''}</div></div>`;
+}
+function renderHome(){
+  setLogo($('#clubLogo'),CLUB.logo);$('#clubName').textContent=CLUB.name||'';
+  $('#portalLink').href='/?portal='+encodeURIComponent(KID?KID.id:'');
+  $('#kidChips').innerHTML=KIDS.length>1?`<span class="mut" style="width:100%;font-weight:700">Siapa yang latihan?</span>`+KIDS.map(k=>`<button class="kidchip ${KID&&k.id===KID.id?'on':''}" data-act="kid" data-id="${esc(k.id)}">${esc(k.n.split(' ')[0])}</button>`).join(''):'';
+  const nama=KID?KID.n.split(' ')[0]:'';
+  const g=gameStats();
+  $('#stStar').textContent=g.stars;$('#stStreak').textContent=g.streak;$('#stLvl').textContent=g.lvl;$('#stLvlName').textContent='🏅 '+g.title;
+  const dn=doneToday(),nDone=PR.filter(p=>dn[p.k]!=null).length;
+  $('#bubble').textContent=PR.length&&nDone===PR.length?`Keren ${nama}! PR hari ini sudah beres semua 🎉`:g.streak>=2?`Hai ${nama}! ${g.streak} hari beruntun, jangan putus ya 🔥`:`Hai ${nama}! Siap jadi Champion hari ini? 💪`;
+  $('#prBox').innerHTML=PR.length?`<div class="pr"><h3>📌 PR dari Pelatih${PRACAK?' · 🎲 khusus untukmu':''}</h3>${PRNOTE?`<div class="note">💬 ${esc(PRNOTE)}</div>`:''}<div style="font-weight:700;margin-top:6px">${nDone===PR.length?'🎉 Semua selesai & sudah absen!':`${nDone} dari ${PR.length} selesai hari ini`}</div><div class="pbar"><i style="width:${nDone/PR.length*100}%"></i></div>${PR.map(p=>{const e=EX[p.k];return `<div class="pitem" data-act="pick" data-ex="${p.k}"><span>${e.emoji}</span><span>${esc(e.name)}<br><small style="opacity:.9">${targetTxt(e,p.t)}</small></span><span>${dn[p.k]!=null?'✅':'▶️'}</span></div>`}).join('')}<div style="font-size:13px;margin-top:8px;opacity:.9">Selesai = dapat minimal 1 ⭐. Hasil otomatis masuk absen.</div></div>`:'<div class="card mut">Belum ada PR dari pelatih. Boleh latihan bebas dulu ya! 💪</div>';
+  const ent=Object.entries(EX);
+  $('#exKuat').innerHTML=ent.filter(([,e])=>e.cat==='kuat').map(([k,e])=>exCard(k,e,dn)).join('');
+  $('#exLentur').innerHTML=ent.filter(([,e])=>e.cat==='lentur').map(([k,e])=>exCard(k,e,dn)).join('');
+  const h=store.get(HK(),[]);
+  $('#hist').innerHTML=h.length?h.slice(0,10).map(x=>`<div><span>${EX[x.ex]?EX[x.ex].emoji+' '+esc(EX[x.ex].name):esc(x.ex)}<br><small class="mut">${new Date(x.t).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})}</small></span><span><b>${x.score}</b><br>${'⭐'.repeat(x.st||0)}</span></div>`).join(''):'<p class="mut">Belum ada latihan. Ayo mulai yang pertama! 🚀</p>';
+  installUi();
+}
+
+function pick(k){
+  cur=k;const e=EX[k],p=prOf(k);
+  $('#sEmoji').textContent=e.emoji;$('#sName').textContent=e.name;$('#sDesc').textContent=e.desc;$('#sView').textContent='📱 '+e.view;
+  $('#sTips').innerHTML=e.tips.map(t=>`<li>${esc(t)}</li>`).join('');
+  $('#sTarLbl').textContent=p?`🎯 Target PR dari pelatih (${unitOf(e)})`:`🎯 Target (${unitOf(e)}${e.mode==='hold'?' dengan posisi benar':' yang benar'})`;
+  $('#sTar').value=p?p.t:store.get('ch_t_'+k,e.def);$('#sTar').readOnly=!!p;
+  $('#sCam').value=store.get('ch_cam','user');$('#sVoice').checked=voiceOn;$('#sAcc').checked=store.get('ch_acc',false);
+  $('#sLoad').textContent='⏳ Menyiapkan AI…';
+  loadModel(modelType()).then(()=>$('#sLoad').textContent='✅ AI siap!').catch(()=>$('#sLoad').textContent='⚠️ AI belum kemuat, cek internet');
+  show('setup');
+}
+
+async function start(){
+  const e=EX[cur],p=prOf(cur);
+  const target=p?p.t:Math.max(1,Math.min(600,parseInt($('#sTar').value)||e.def));
+  if(!p)store.set('ch_t_'+cur,target);
+  const facing=$('#sCam').value;store.set('ch_cam',facing);
+  voiceOn=$('#sVoice').checked;store.set('ch_voice',voiceOn);store.set('ch_acc',$('#sAcc').checked);
+  unlockAudio();say('Siap',true);
+  $('#vBtn').textContent=voiceOn?'🔊':'🔇';$('#exName').textContent=e.emoji+' '+e.name;
+  $('#big').innerHTML='';$('#sub').textContent='';$('#info').textContent='';setCue('','');setMeter(0,0,'');$('#ovBtn').style.display='none';
+  show('live');setOv('📷 Menyalakan kamera…');
+  try{await startCam(facing);}
+  catch(err){setOv(err&&err.name==='NotAllowedError'?'Kamera belum diizinkan. Izinkan kamera di pengaturan browser, lalu coba lagi.':'Kamera tidak bisa dibuka. Tutup aplikasi lain yang pakai kamera, lalu coba lagi.');$('#ovBtn').style.display='block';return;}
+  setOv('🤖 Memuat AI…');
+  try{lm=await loadModel(modelType());}
+  catch(err){stopCam();setOv('Gagal memuat AI. Cek internet lalu coba lagi.');$('#ovBtn').style.display='block';return;}
+  SM={};S=newSession(target);lastVT=-1;setOv('');
+  running=true;wake();updHud();requestAnimationFrame(frame);
+}
+function stopRun(){running=false;stopCam();unwake();try{speechSynthesis.cancel()}catch(e){}}
+
+function finish(){
+  const e=EX[cur];running=false;
+  if(!S.snap&&lastP&&video.videoWidth)snap(lastP,'#f59e0b');
+  stopCam();unwake();
+  let score,main,rows=[];
+  if(e.mode==='hold'){
+    const comp=Math.min(1,S.goodT/S.target),qual=S.activeT?S.qSum/S.activeT:0;
+    score=Math.round(100*(0.6*comp+0.4*qual));main=`${Math.floor(S.goodT)} / ${S.target} detik posisi benar`;
+    rows.push(['Total waktu latihan',`${Math.round(S.activeT)} dtk`]);
+    if(e.sides&&S.side)rows.push(['Kiri / Kanan',`${S.side.kiri|0} dtk / ${S.side.kanan|0} dtk`]);
+  }else{
+    const g=S.reps.filter(r=>r.good),t=S.reps.length,comp=Math.min(1,g.length/S.target),acc=t?g.length/t:0;
+    score=Math.round(100*(0.6*comp+0.4*acc));main=`${g.length} / ${S.target} gerakan benar`;
+    rows.push(['Total gerakan',String(t)]);rows.push(['Akurasi',t?Math.round(acc*100)+'%':'-']);
+    if(cur==='cossack'||cur==='samping')rows.push(['Kiri / Kanan (benar)',`${g.filter(r=>r.side==='kiri').length} / ${g.filter(r=>r.side==='kanan').length}`]);
+  }
+  if(S.best!=null&&e.fmtBest)rows.push([e.bestLabel,e.fmtBest(S.best)]);
+  const top=Object.entries(S.faults).sort((a,b)=>b[1]-a[1])[0],fix=top?top[0].replace(/[!…]/g,''):null;
+  const st=score>=85?3:score>=65?2:score>=40?1:0,stars='⭐'.repeat(st);
+  const praise=st===3?'Luar biasa! 🔥':st===2?'Keren! Terus latihan 💪':st===1?'Lumayan! Besok lebih hebat ya':'Ayo coba lagi, pasti bisa! 💪';
+  const tgl=new Date().toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
+  $('#rEx').textContent=e.emoji+' '+e.name;$('#rScore').textContent=score;
+  $('#rScoreBox').style.borderColor=st>=2?'var(--ok)':st===1?'var(--warn)':'var(--bad)';
+  $('#rStars').textContent=stars||'💪';$('#rPraise').textContent=praise;$('#rMain').textContent=main;
+  $('#rRows').innerHTML=rows.map(r=>`<div><span>${esc(r[0])}</span><span>${esc(r[1])}</span></div>`).join('');
+  $('#rFix').innerHTML=fix?`<div class="fix">🎯 Latihan berikutnya, perhatikan: <b>${esc(fix)}</b></div>`:'';
+  const img=$('#rImg');if(S.snap){img.src=S.snap;img.style.display='block';}else img.style.display='none';
+  S.shareText=[`🏆 Hasil Champion${CLUB.name?' · '+CLUB.name:''}`,`Nama: ${KID?KID.n:'-'}`,`Latihan: ${e.name}`,`Hasil: ${main}`,`Skor: ${score}/100 ${stars}`,...rows.map(r=>`${r[0]}: ${r[1]}`),fix?`Perlu diperbaiki: ${fix}`:'',`Waktu: ${tgl}`].filter(Boolean).join('\n');
+  const h=store.get(HK(),[]);h.unshift({t:Date.now(),ex:cur,score,st,main});store.set(HK(),h.slice(0,60));
+  const sid=String(KID.id).toLowerCase();
+  if(st>=1){const k='ch_done_'+tglLokal()+'_'+sid,dn=store.get(k,{});dn[cur]=Math.max(dn[cur]||0,score);store.set(k,dn);}
+  const dn=doneToday(),next=PR.find(x=>dn[x.k]==null&&x.k!==cur);
+  $('#rNext').innerHTML=next?`<button class="btn" data-act="pick" data-ex="${next.k}">➡️ Lanjut PR: ${EX[next.k].emoji} ${esc(EX[next.k].name)}</button>`:(PR.length&&PR.every(x=>dn[x.k]!=null)?'<div class="absen ok">🎉 Semua PR hari ini SELESAI!</div>':'');
+  show('result');
+  if(st>=2)confetti();
+  const box=$('#rAbsen');
+  if(S.activeT<3&&!S.reps.length){box.className='absen';box.textContent='Latihan terlalu singkat, belum masuk absen';return;}
+  box.className='absen';box.textContent='⏳ Mengirim absen…';
+  const uid=(Date.now().toString(36)+Math.random().toString(36).slice(2,8)).slice(0,20);
+  sendAbsen({sid:KID.id,rec:{action:'result',sid:KID.id,uid,t:Date.now(),ex:cur,exName:e.name,hasil:main,skor:score,bintang:st,foto:S.snap||''}})
+    .then(ok=>{box.className='absen '+(ok?'ok':'bad');box.textContent=ok?'✅ Sudah absen! Pelatih bisa lihat hasilmu':'⚠️ Absen belum terkirim (internet?). Nanti dicoba lagi otomatis';
+      if(ok&&st>=1)TODAY.push({sid:KID.id,ex:cur,skor:score});});
+}
+
+/* ---------- absen ke Dojang HQ ---------- */
+let flushing=null;
+function sendAbsen(item){const q=store.get('ch_queue',[]);q.push(item);store.set('ch_queue',q.slice(-25));return flushQueue();}
+function flushQueue(){
+  if(flushing)return flushing.then(()=>flushQueue());
+  flushing=(async()=>{
+    const q=store.get('ch_queue',[]);if(!q.length)return true;
+    const rest=[];
+    for(const it of q){
+      const tok=ptMap()[String(it.sid).toLowerCase()]||TOKEN;
+      if(!tok){rest.push(it);continue;}
+      try{const res=await fetch('/api/champion',{method:'POST',headers:{'content-type':'application/json','X-Portal-Token':tok},body:JSON.stringify(it.rec)});
+        if(res.status>=500||res.status===429||res.status===401)throw 0;}
+      catch(e){rest.push(it);}
+    }
+    store.set('ch_queue',rest);return rest.length===0;
+  })().finally(()=>{flushing=null});
+  return flushing;
+}
+async function share(){
+  const text=S&&S.shareText;if(!text)return;
+  if(S.snap&&navigator.canShare){
+    try{const blob=await(await fetch(S.snap)).blob(),file=new File([blob],'champion.jpg',{type:'image/jpeg'});
+      if(navigator.canShare({files:[file]})){await navigator.share({files:[file],text});return;}}
+    catch(err){if(err&&err.name==='AbortError')return;}
+  }
+  location.href='https://wa.me/?text='+encodeURIComponent(text);
+}
+
+/* ---------- pasang aplikasi (PWA) ---------- */
+let installEvt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;installUi();});
+window.addEventListener('appinstalled',()=>{installEvt=null;installUi();});
+function installUi(){
+  const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  $('#installBtn').style.display=installEvt&&!standalone?'block':'none';
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent)&&!standalone;
+  $('#iosHint').style.display=ios?'block':'none';
+}
+async function install(){if(!installEvt)return;installEvt.prompt();try{await installEvt.userChoice}catch(e){}installEvt=null;installUi();}
+
+/* ---------- mulai sebagai anak ---------- */
+function needPortal(id,msg){
+  show('boot');
+  const cid=id||qs.get('id')||store.get('ch_last','')||'';
+  $('#bootMsg').innerHTML=msg||'Masuk sebagai murid: ketik namamu.';
+  $('#bootAct').innerHTML=`<div style="margin-top:14px;text-align:left">`+
+    (cid?'':`<label class="mut" style="font-weight:700">Kode murid (dari pelatih)</label><input id="slId" autocomplete="off" autocapitalize="off" style="margin:6px 0 10px">`)+
+    `<label class="mut" style="font-weight:700">Namamu</label><input id="slName" autocomplete="name" placeholder="Nama lengkap atau nama panggilan" style="margin-top:6px">`+
+    `<button class="btn" id="slGo">Masuk 🏆</button><p class="mut center" id="slErr" style="color:#dc2626;margin-top:10px"></p></div>`;
+  $('#slGo').onclick=async()=>{
+    const sid=String(cid||($('#slId')||{}).value||'').trim(),name=$('#slName').value.trim(),err=$('#slErr');
+    if(!sid||!name){err.textContent='Isi nama dulu ya.';return;}
+    $('#slGo').disabled=true;err.textContent='';
+    try{
+      const r=await fetch('/api/portal',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'verify',id:sid,name,self:true})});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok||!j.token){err.textContent=j.error||'Gagal masuk.';$('#slGo').disabled=false;return;}
+      const m=ptMap();(j.ids||[sid]).forEach(x=>{m[String(x).toLowerCase()]=j.token;});
+      localStorage.setItem(PT_KEY,JSON.stringify(m));store.set('ch_last',String(sid).toLowerCase());
+      bootKid();
+    }catch(e){err.textContent='Tidak bisa terhubung. Cek internet ya.';$('#slGo').disabled=false;}
+  };
+}
+async function bootKid(){
+  const m=ptMap();let id=String(qs.get('id')||store.get('ch_last','')||'').toLowerCase(),tok=id?m[id]:'';
+  if(!tok){const first=Object.entries(m)[0];if(first){id=first[0];tok=first[1];}}
+  if(!tok)return needPortal(qs.get('id'));
+  TOKEN=tok;
+  try{
+    const r=await fetch('/api/champion?mode=kid',{headers:{'X-Portal-Token':tok},cache:'no-store'});
+    const j=await r.json().catch(()=>({}));
+    if(r.status===401)return needPortal(id,'Sesi sudah berakhir. Ketik namamu lagi ya.');
+    if(!r.ok)throw new Error(j.error||'Gagal memuat');
+    CLUB=j.club||CLUB;KIDS=j.kids||[];PRNOTE=(j.pr&&j.pr.note)||'';PRACAK=!!(j.pr&&j.pr.mode==='acak');TODAY=j.today||[];
+    store.set('ch_cache',{CLUB,KIDS,PRNOTE,PRACAK});
+  }catch(err){
+    const c=store.get('ch_cache',null);
+    if(!c)return needPortal(id,'Tidak bisa terhubung. Cek internet lalu buka lagi ya.');
+    ({CLUB,KIDS,PRNOTE,PRACAK}=c);TODAY=[];
+  }
+  setKid(KIDS.find(k=>String(k.id).toLowerCase()===id)||KIDS[0]);
+  renderHome();show('home');flushQueue();
+}
+
+/* ---------- halaman pelatih ---------- */
+let COACH=null;
+function staffHeaders(){
+  const tok=raw('dojang_token'),pin=raw('dojang_pin');
+  if(pin)return {'X-Dojang-Pin':pin};
+  if(tok)return {'X-Dojang-Token':tok};
+  return null;
+}
+function needLogin(msg){
+  show('boot');$('#bootMsg').innerHTML=msg||'Masuk dulu ke <b>Dojang HQ</b> sebagai admin atau pelatih di HP/browser ini, lalu buka menu <b>🏆 Champion</b>.';
+  $('#bootAct').innerHTML='<a class="btn" style="text-decoration:none" href="/">Masuk ke Dojang HQ</a>';
+}
+async function coachLoad(){
+  const h=staffHeaders();if(!h)return needLogin();
+  const tgl=$('#cTgl').value||tglLokal();
+  $('#cOut').innerHTML='<p class="mut" style="margin-top:10px">⏳ Memuat…</p>';
+  try{
+    const r=await fetch('/api/champion?mode=staff&tgl='+encodeURIComponent(tgl),{headers:h,cache:'no-store'});
+    const j=await r.json().catch(()=>({}));
+    if(r.status===401||r.status===403&&!COACH)return needLogin(esc(j.error||'Sesi berakhir.')+'<br>Silakan masuk lagi di Dojang HQ.');
+    if(!r.ok)throw new Error(j.error||('Gagal ('+r.status+')'));
+    COACH=j;show('coach');
+    setLogo($('#cLogo'),j.club&&j.club.logo);$('#cClub').textContent=(j.club&&j.club.name||'')+' · '+(j.who||'');
+    const units=[...new Set(j.students.map(s=>s.unit))].sort(),sel=$('#cUnit'),cu=sel.value;
+    sel.innerHTML='<option value="">Semua unit</option>'+units.map(u=>`<option ${u===cu?'selected':''}>${esc(u)}</option>`).join('');
+    renderCoach();renderPrEdit();
+  }catch(e){show('coach');$('#cOut').innerHTML=`<p class="err">⚠️ ${esc(e.message||'Gagal memuat')}</p>`;}
+}
+function renderCoach(){
+  const j=COACH,unit=$('#cUnit').value;
+  const studs=j.students.filter(s=>!unit||s.unit===unit);
+  const ids=new Set(studs.map(s=>String(s.id)));
+  const res=j.results.filter(r=>ids.has(String(r.sid)));
+  const by=new Map();for(const r of res){if(!by.has(r.sid))by.set(r.sid,[]);by.get(r.sid).push(r);}
+  const prOfS=s=>(s.pr||[]).map(x=>x.k);
+  const kids=studs.filter(s=>by.has(s.id)).map(s=>{const it=by.get(s.id),pk=prOfS(s);const done=pk.filter(k=>it.some(r=>r.ex===k&&r.skor>=40)).length;return {...s,items:it,done,tot:pk.length};}).sort((a,b)=>a.n.localeCompare(b.n));
+  const prK=(j.pr.items||[]).map(x=>x.k);
+  const belum=studs.filter(s=>!by.has(s.id)).sort((a,b)=>a.n.localeCompare(b.n));
+  COACH._view={kids,belum,prK};
+  $('#cOut').innerHTML=`<div class="sumrow"><div class="stat"><b style="color:var(--green)">${kids.length}</b><small>✅ Sudah latihan</small></div><div class="stat"><b style="color:#b45309">${belum.length}</b><small>⏳ Belum</small></div><div class="stat"><b>${prK.length?kids.filter(k=>k.tot&&k.done>=k.tot).length:'-'}</b><small>🏆 PR lengkap</small></div></div>`+
+    `<button class="btn wa" data-act="rekapWa">💬 Kirim rekap ke WA</button>`+
+    kids.map(kd=>`<div class="kid"><h4><span>${esc(kd.n)} <small class="mut">· ${esc(kd.unit)}</small></span>${kd.tot?`<span class="tag" style="${kd.done<kd.tot?'background:#fef3c7;color:#92400e':''}">PR ${kd.done}/${kd.tot}${kd.done>=kd.tot?' ✅':''}</span>`:''}</h4>${j.pr.mode==='acak'&&kd.pr?`<div class="mut" style="font-size:14px">🎲 PR: ${kd.pr.map(x=>EX[x.k]?EX[x.k].emoji+' '+EX[x.k].name:x.k).join(', ')}</div>`:''}`+
+      kd.items.map(i=>`<div class="it">${EX[i.ex]?EX[i.ex].emoji:'🥋'} <b>${esc(i.exName)}</b> · ${esc(i.hasil)}<br>Skor <b>${i.skor}</b> ${'⭐'.repeat(i.bintang||0)} · jam ${fmtJam(i.ts)} ${i.foto?`<button class="btn sec small" data-act="foto" data-k="${esc(i.id)}">📷 Foto</button>`:''}<div class="ph"></div></div>`).join('')+`</div>`).join('')+
+    (belum.length?`<div class="card"><b>⏳ Belum latihan (${belum.length})</b><div class="belum">${belum.map(s=>`<span title="${esc((s.pr||[]).map(x=>EX[x.k]?EX[x.k].name:x.k).join(', '))}">${esc(s.n)}${j.pr.mode==='acak'&&s.pr&&s.pr.length?' '+s.pr.map(x=>EX[x.k]?EX[x.k].emoji:'').join(''):''}</span>`).join('')}</div></div>`:'');
+}
+function renderPrEdit(){
+  const j=COACH,pr0=j.pr||{},baru=!pr0.updatedAt;
+  // PR belum pernah diatur: bawaan = acak per anak, 2 gerakan simpel per hari
+  const pr=baru?{...pr0,mode:'acak',n:2,harian:true,items:SIMPEL.map(k=>({k,t:EX[k].def}))}:pr0;
+  const cur=new Map((pr.items||[]).map(x=>[x.k,x.t])),dis=j.canEdit?'':'disabled',acak=pr.mode==='acak';
+  const info=baru?'<p class="mut" style="background:#fff7ed;border-radius:12px;padding:8px 10px">💡 Saran awal sudah disiapkan: <b>tiap anak 2 gerakan simpel, acak, berganti setiap hari</b>. Tinggal tekan <b>Simpan PR</b>.</p>':pr.updatedAt?`<p class="mut">Terakhir diubah ${new Date(pr.updatedAt).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})}${pr.by?' oleh '+esc(pr.by):''}</p>`:'<p class="mut">Belum ada PR. Atur di bawah lalu simpan.</p>';
+  const row=([k,e])=>`<div class="gen"><input type="checkbox" id="g_${k}" ${cur.has(k)?'checked':''} ${dis}><span>${e.emoji} ${esc(e.name)}<br><small class="mut">${unitOf(e)}${SIMPEL.includes(k)?' · 👍 simpel':''}</small></span><input type="number" id="gt_${k}" value="${cur.get(k)||e.def}" min="1" inputmode="numeric" ${dis}></div>`;
+  const ent=Object.entries(EX);
+  $('#prEdit').innerHTML=info+
+    `<label>Cara membagi PR</label><select id="gMode" ${dis}><option value="sama" ${acak?'':'selected'}>Sama untuk semua anak</option><option value="acak" ${acak?'selected':''}>🎲 Acak per anak (tiap anak beda)</option></select>`+
+    `<div id="gAcak" style="${acak?'':'display:none'}"><label>Tiap anak dapat berapa latihan?</label><select id="gN" ${dis}>${[1,2,3,4].map(n=>`<option ${n===(pr.n||2)?'selected':''}>${n}</option>`).join('')}</select>`+
+    `<label class="chk"><input type="checkbox" id="gHarian" ${pr.harian?'checked':''} ${dis}> Acak ulang setiap hari</label><p class="mut" style="margin-top:6px">Latihan dipilih acak dari yang dicentang, dicampur kekuatan & kelenturan.</p></div>`+
+    `<label style="margin-top:14px">💥 Kekuatan</label>`+ent.filter(([,e])=>e.cat==='kuat').map(row).join('')+
+    `<label style="margin-top:14px">🌈 Kelenturan</label>`+ent.filter(([,e])=>e.cat==='lentur').map(row).join('')+
+    (j.canEdit?`<button class="btn sec" data-act="pickSimple">👍 Centang yang simpel saja</button><button class="btn sec" data-act="pickAll">☑️ Centang semua</button>`:'')+
+    `<label>Pesan untuk anak (opsional)</label><textarea id="gNote" maxlength="300" ${dis} placeholder="Contoh: Latihan tiap hari ya, minimal 1x sehari!">${esc(pr.note||'')}</textarea>`+
+    (j.canEdit?`<button class="btn" data-act="savePr">💾 Simpan PR</button>${acak?'<button class="btn sec" data-act="reshuffle">🎲 Acak ulang sekarang</button>':''}`:'<p class="mut">Akun ini hanya bisa melihat PR.</p>')+
+    `<button class="btn wa" data-act="announce">📢 Umumkan PR ke grup WA</button>`;
+  const m=$('#gMode');if(m)m.onchange=()=>{$('#gAcak').style.display=m.value==='acak'?'':'none';};
+}
+async function savePr(_,reshuffle){
+  const items=Object.keys(EX).filter(k=>$('#g_'+k).checked).map(k=>({k,t:Math.max(1,parseInt($('#gt_'+k).value)||EX[k].def)}));
+  const mode=$('#gMode').value,n=parseInt($('#gN').value)||2;
+  if(mode==='acak'&&items.length<2){alert('Untuk mode acak, centang minimal 2 latihan ya');return;}
+  try{
+    const r=await fetch('/api/champion',{method:'POST',headers:{'content-type':'application/json',...staffHeaders()},body:JSON.stringify({action:'setpr',items,note:$('#gNote').value.trim(),mode,n,harian:$('#gHarian').checked,reshuffle:!!reshuffle})});
+    const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Gagal');
+    alert(reshuffle?'PR sudah diacak ulang!':'PR tersimpan! Anak-anak langsung melihat PR baru di Champion.');coachLoad();
+  }catch(e){alert('Gagal menyimpan: '+e.message);}
+}
+function announce(){
+  const pr=COACH.pr||{},items=pr.items||[];
+  if(!items.length){alert('Simpan PR dulu ya');return;}
+  const list=items.map(x=>`${EX[x.k].emoji} ${EX[x.k].name}: ${targetTxt(EX[x.k],x.t)}`).join('\n');
+  const head=pr.mode==='acak'?`🎲 Setiap anak dapat ${Math.min(pr.n||2,items.length)} latihan ACAK (beda-beda tiap anak${pr.harian?', berganti setiap hari':''}). Cek di Champion masing-masing ya!\n\nDaftar latihannya:\n`:'';
+  const msg=`📌 PR Champion${COACH.club&&COACH.club.name?' – '+COACH.club.name:''}\n${head}${list}${pr.note?'\n\n💬 '+pr.note:''}\n\nCara mengerjakan:\n1. Buka Portal Orang Tua anak (link dari pelatih)\n2. Tekan tombol 🏆 Champion\n3. Latihan di depan kamera HP, hasilnya otomatis ABSEN ✅\n\nSudah pernah buka? Langsung saja: ${location.origin}/champion`;
+  location.href='https://wa.me/?text='+encodeURIComponent(msg);
+}
+function rekapWa(){
+  const v=COACH._view,tgl=$('#cTgl').value||tglLokal();
+  const txt=`📋 Absen PR Champion ${tgl}${$('#cUnit').value?' · Unit '+$('#cUnit').value:''}\n✅ Sudah: ${v.kids.length} · ⏳ Belum: ${v.belum.length}\n\n`+
+    v.kids.map((kd,n)=>`${n+1}. ${kd.n}${kd.tot?` (PR ${kd.done}/${kd.tot}${kd.done>=kd.tot?' ✅':''})`:''}\n`+kd.items.map(i=>`   ${EX[i.ex]?EX[i.ex].emoji:''} ${i.exName}: ${i.skor} ${'⭐'.repeat(i.bintang||0)}`).join('\n')).join('\n')+
+    (v.belum.length?`\n\n⏳ Belum latihan:\n${v.belum.map(s=>'- '+s.n).join('\n')}`:'');
+  location.href='https://wa.me/?text='+encodeURIComponent(txt);
+}
+async function loadFoto(btn){
+  btn.disabled=true;btn.textContent='⏳';
+  try{const r=await fetch('/api/champion?mode=foto&id='+encodeURIComponent(btn.dataset.k),{headers:staffHeaders()||{}});const j=await r.json();
+    if(j.foto){const img=new Image();img.src=j.foto;btn.parentElement.querySelector('.ph').appendChild(img);btn.remove();}else btn.textContent='Foto sudah tidak ada';}
+  catch(e){btn.disabled=false;btn.textContent='📷 Coba lagi';}
+}
+
+/* ---------- tombol ---------- */
+const ACTS={
+  pick:t=>pick(t.dataset.ex),start,
+  home:()=>{stopRun();renderHome();show('home');},
+  backSetup:()=>{stopRun();show('setup');},
+  stop:()=>{if(S&&S.phase==='act'&&(S.activeT>2||S.reps.length)){say('Oke, selesai',true);finish();}else{stopRun();show('setup');}},
+  again:()=>pick(cur),share,install,
+  kid:t=>{setKid(KIDS.find(k=>String(k.id)===t.dataset.id)||KID);renderHome();},
+  voice:()=>{voiceOn=!voiceOn;store.set('ch_voice',voiceOn);$('#vBtn').textContent=voiceOn?'🔊':'🔇';if(!voiceOn)try{speechSynthesis.cancel()}catch(e){}},
+  coachLoad,savePr:()=>savePr(null,false),reshuffle:()=>{if(confirm('Acak ulang PR semua anak?'))savePr(null,true);},pickSimple:()=>{Object.keys(EX).forEach(k=>{const c=$('#g_'+k);if(c)c.checked=SIMPEL.includes(k);});},pickAll:()=>{Object.keys(EX).forEach(k=>{const c=$('#g_'+k);if(c)c.checked=true;});},announce,rekapWa,foto:loadFoto
+};
+document.addEventListener('click',ev=>{const t=ev.target.closest('[data-act]');if(t&&ACTS[t.dataset.act])ACTS[t.dataset.act](t);});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&running&&S&&S.phase!=='act'){stopRun();show('setup');}});
+$('#cUnit').addEventListener('change',()=>{if(COACH)renderCoach();});
+$('#cTgl').addEventListener('change',coachLoad);
+
+if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js',{updateViaCache:'none'}).catch(()=>{});
+if(qs.has('pelatih')){$('#cTgl').value=tglLokal();coachLoad();}
+else bootKid();
+</script>
+</body>
+</html>

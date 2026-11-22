@@ -69,3 +69,10 @@ Salah PIN/kata sandi 15x dari satu jaringan dalam 15 menit akan diblokir sementa
 ## 8. Keamanan repo
 Repo GitHub sebaiknya dijadikan **private** (GitHub → Settings → General → Danger Zone → Change visibility).
 Deploy Cloudflare yang tersambung ke GitHub tetap berjalan walau repo private.
+
+## 9. 🏆 Champion (PR latihan di rumah)
+Aplikasi PWA terpisah di alamat `/champion` (domain yang sama), untuk latihan PR di rumah dengan cek gerakan lewat kamera HP (AI berjalan di HP, video tidak dikirim). Tidak perlu pengaturan tambahan; opsional: variabel `CLUB_NAME` untuk nama klub yang tampil di Champion (bawaan "Supreme Taekwondo Club").
+- **Anak / orang tua**: buka Portal Orang Tua → banner **🏆 Champion**. Nama anak otomatis dari verifikasi portal (saudara kandung bisa dipilih). Bisa dipasang sebagai aplikasi sendiri.
+- **Murid langsung (tanpa Portal Orang Tua)**: di daftar Murid tekan **🏆 Champion** untuk menyalin link `/champion?id=...`, kirim ke murid. Murid cukup mengetik namanya sendiri (nama saudara kandung tidak diterima).
+- **Admin & pelatih**: menu **🏆 Champion (PR)** → atur PR aktif (21 latihan kekuatan & kelenturan, target, pesan; bisa **sama untuk semua** atau **🎲 acak per anak**), lihat siapa yang sudah / belum latihan per tanggal & unit, skor, foto posisi terbaik, kirim rekap ke WA. Pelatih hanya melihat murid di unitnya; mengatur PR butuh izin absen atau penilaian.
+- Data: koleksi `champion` (hasil), `champion_foto` (foto, otomatis dihapus setelah 60 hari), `champion_pr` (PR aktif). Tidak ikut `/api/all` dan tidak ikut cadangan data, jadi aplikasi tetap ringan.

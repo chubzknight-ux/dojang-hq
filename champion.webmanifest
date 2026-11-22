@@ -1,0 +1,18 @@
+{
+  "id": "/champion",
+  "name": "Champion – Latihan PR Taekwondo",
+  "short_name": "Champion",
+  "description": "Latihan PR di rumah dengan cek form lewat kamera, otomatis absen.",
+  "start_url": "/champion",
+  "scope": "/champion",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fff7e6",
+  "theme_color": "#ff7a2f",
+  "icons": [
+    { "src": "/champion-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/champion-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/champion-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/champion-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
