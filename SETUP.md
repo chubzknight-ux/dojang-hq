@@ -25,6 +25,7 @@ Pilih tipe **Secret** untuk semua PIN dan API key, jangan tipe Text.
 |---|---|---|
 | `DOJANG_PIN` | ya | PIN admin untuk membuka & mengubah data. Juga kunci link Portal Orang Tua. |
 | `ANALYZE_PIN` | ya | Kunci akun pelatih & Analisa Video. **Isi sama dengan `DOJANG_PIN`.** |
+| `TOKEN_SECRET` | disarankan | Teks acak panjang (32+ karakter) untuk menandatangani token login admin. Tanpa ini, token tetap aman selama PIN kuat, tetapi isi sebagai lapisan tambahan. Mengganti nilainya mengeluarkan semua sesi admin. |
 | `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` | tidak | Kalau ingin Analisa Video AI Cloud memakai Gemini / Claude, bukan Workers AI. |
 | `ANALYZE_PROVIDER` | tidak | `cf`, `gemini`, atau `claude` untuk memaksa pilihan layanan AI. |
 | `CF_MODEL`, `GEMINI_MODEL`, `ANALYZE_MODEL` | tidak | Mengganti model AI bawaan. |
@@ -69,3 +70,20 @@ Salah PIN/kata sandi 15x dari satu jaringan dalam 15 menit akan diblokir sementa
 ## 8. Keamanan repo
 Repo GitHub sebaiknya dijadikan **private** (GitHub → Settings → General → Danger Zone → Change visibility).
 Deploy Cloudflare yang tersambung ke GitHub tetap berjalan walau repo private.
+
+## 9. 🏆 Champion (PR latihan di rumah)
+Aplikasi PWA terpisah di alamat `/champion` (domain yang sama), untuk latihan PR di rumah dengan cek gerakan lewat kamera HP (AI berjalan di HP, video tidak dikirim). Tidak perlu pengaturan tambahan; opsional: variabel `CLUB_NAME` untuk nama klub yang tampil di Champion (bawaan "Supreme Taekwondo Club").
+- **Anak / orang tua**: buka Portal Orang Tua → banner **🏆 Champion**. Nama anak otomatis dari verifikasi portal (saudara kandung bisa dipilih). Bisa dipasang sebagai aplikasi sendiri.
+- **Murid langsung (tanpa Portal Orang Tua)**: di daftar Murid tekan **🏆 Champion** untuk menyalin link `/champion?id=...`, kirim ke murid. Murid cukup mengetik namanya sendiri (nama saudara kandung tidak diterima).
+- **Admin & pelatih**: menu **🏆 Champion (PR)** → atur PR aktif (21 latihan kekuatan & kelenturan, target, pesan; bisa **sama untuk semua** atau **🎲 acak per anak**), lihat siapa yang sudah / belum latihan per tanggal & unit, skor, foto posisi terbaik, kirim rekap ke WA. Pelatih hanya melihat murid di unitnya; mengatur PR butuh izin absen atau penilaian.
+- Data: koleksi `champion` (hasil), `champion_foto` (foto, otomatis dihapus setelah 60 hari), `champion_pr` (PR aktif). Tidak ikut `/api/all` dan tidak ikut cadangan data, jadi aplikasi tetap ringan.
+
+## 10. Keamanan (ringkas)
+- **PIN tidak disimpan di HP.** Saat masuk, PIN ditukar dengan token bertanda tangan (7 hari, `/api/login`). Mengganti `DOJANG_PIN` atau `TOKEN_SECRET` otomatis mengeluarkan semua sesi admin. HP yang masih menyimpan PIN lama otomatis diubah menjadi token saat dipakai berikutnya.
+- Salah PIN/kata sandi dibatasi 15x per 15 menit per jaringan. Sandi pelatih disimpan ter-hash (PBKDF2).
+- Header keamanan di `_headers`: Content-Security-Policy (hanya sumber yang dikenal: situs sendiri, Google Fonts, dan model pose MediaPipe), HSTS, anti-iframe, `nosniff`, kebijakan kamera hanya untuk situs sendiri.
+- Data dari pengguna selalu di-escape sebelum tampil; unggahan data lewat API dibatasi 2 MB.
+- Koleksi Champion hanya bisa ditulis lewat `/api/champion`, bukan API data umum.
+
+## 11. 📖 Panduan video
+Video cara memakai fitur ada di folder `panduan/` dan bisa dibuka tanpa login di `/?panduan=1` (juga lewat menu **📖 Panduan**, tautan di layar masuk, dan tombol di Portal Orang Tua serta Champion). Video direkam otomatis dari aplikasi asli dengan data contoh memakai skrip di folder `tools-panduan/` (lihat `tools-panduan/README.md`); rekam ulang bila tampilan aplikasi berubah.

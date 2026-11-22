@@ -57,8 +57,11 @@ export async function onRequestPost({ request, env }) {
     return Response.json({ error: "Terlalu banyak percobaan untuk murid ini. Coba lagi nanti." }, { status: 429 });
   const fk = fKey(st);
   const family = fk ? students.filter(s => s.id === st.id || fKey(s) === fk) : [st];
-  if (!family.some(s => nameMatches(typed, s.n))) return WRONG;
-  return Response.json({ ok: true, token: await makeToken(env, family.map(s => String(s.id))), ids: family.map(s => String(s.id)) }, { headers: { "Cache-Control": "no-store" } });
+  // body.self: akses murid langsung (Champion) — nama harus cocok dengan murid itu sendiri, token hanya untuk dia (tanpa saudara)
+  const self = body.self === true;
+  if (!(self ? nameMatches(typed, st.n) : family.some(s => nameMatches(typed, s.n)))) return WRONG;
+  const who = self ? [st] : family;
+  return Response.json({ ok: true, token: await makeToken(env, who.map(s => String(s.id))), ids: who.map(s => String(s.id)) }, { headers: { "Cache-Control": "no-store" } });
 }
 
 const cleanWa = s => String(s || "").replace(/\D/g, "").replace(/^0/, "62");
