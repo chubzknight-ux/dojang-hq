@@ -61,6 +61,7 @@ self.addEventListener("fetch", e => {
       return;
     }
     if (u.pathname === "/sw.js") return;
+    if (u.pathname.startsWith("/panduan/")) return;   // video panduan: biarkan browser memutar langsung (butuh Range)
     e.respondWith(cacheFirst(req));
     return;
   }

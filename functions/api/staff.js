@@ -36,11 +36,35 @@ async function hmacKey(env) {
   return crypto.subtle.importKey("raw", enc.encode("dojang-staff-v1|" + env.ANALYZE_PIN), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
 }
 
+// ===== Token admin =====
+// Saat masuk, PIN admin ditukar dengan token bertanda tangan (7 hari). Aplikasi menyimpan token itu, bukan PIN-nya,
+// dan mengirimnya di header yang sama (X-Dojang-Pin, diawali "t1."). Mengganti PIN otomatis membatalkan semua token lama.
+// Kunci tanda tangan memakai TOKEN_SECRET bila diisi (disarankan), ditambah PIN admin.
+const ADMIN_TOKEN_MS = 7 * 864e5;
+const adminTokKey = (env, pin) => crypto.subtle.importKey("raw", enc.encode("dojang-admin-v1|" + String(env.TOKEN_SECRET || "") + "|" + pin), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+export async function makeAdminToken(env, pinValue) {
+  const pin = String(pinValue || "").trim();
+  const payload = toB64u(enc.encode(JSON.stringify({ ex: Date.now() + ADMIN_TOKEN_MS })));
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", await adminTokKey(env, pin), enc.encode(payload)));
+  return "t1." + payload + "." + toB64u(sig);
+}
+async function adminTokenOk(env, h, pinValue) {
+  const pin = String(pinValue || "").trim();
+  const parts = String(h).split(".");
+  if (parts.length !== 3 || parts[0] !== "t1" || !pin) return false;
+  try {
+    if (!(await crypto.subtle.verify("HMAC", await adminTokKey(env, pin), fromB64u(parts[2]), enc.encode(parts[1])))) return false;
+    const p = JSON.parse(new TextDecoder().decode(fromB64u(parts[1])));
+    return !!p.ex && p.ex > Date.now();
+  } catch (e) { return false; }
+}
+
 export async function isOwner(request, env) {
   // spasi di awal/akhir diabaikan, sama seperti adminGuard
   const pin = (request.headers.get("X-Dojang-Pin") || "").trim();
   const want = String(env.ANALYZE_PIN || "").trim();
   if (!want || !pin) return false;
+  if (pin.startsWith("t1.")) return adminTokenOk(env, pin, want);
   return same(await sha(pin), await sha(want));
 }
 
@@ -185,6 +209,10 @@ export async function adminGuard(request, env, pinValue, missingMsg) {
   if (!pin) return J({ error: missingMsg || "Server belum diatur: isi variabel DOJANG_PIN di Cloudflare." }, 500);
   if (await rlBlocked(env, request)) return J(TOO_MANY, 429);
   const h = (request.headers.get("X-Dojang-Pin") || "").trim();
+  if (h.startsWith("t1.")) {
+    if (await adminTokenOk(env, h, pin)) return null;
+    await rlFail(env, request); return J({ error: "Sesi berakhir. Masukkan PIN lagi." }, 403);
+  }
   if (!h || !same(await sha(h), await sha(pin))) { await rlFail(env, request); return J({ error: "PIN salah" }, 403); }
   return null;
 }

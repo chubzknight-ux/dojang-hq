@@ -2,7 +2,8 @@ const J=(d,s=200)=>new Response(JSON.stringify(d),{status:s,headers:{"content-ty
 import { adminGuard, adminPinOf, audit } from "../../staff.js";
 // akun pelatih hanya boleh diubah lewat /api/staff (yang memeriksa & meng-hash kata sandi); hasil Champion lewat /api/champion
 const valid=p=>/^[a-z]{1,30}$/.test(p.coll)&&p.coll!=="staff"&&p.coll!=="champion"&&/^[A-Za-z0-9_-]{1,80}$/.test(p.id);
-const readBody=async request=>{const b=await request.json();return b&&typeof b==="object"&&!Array.isArray(b)?b:null};
+const MAX_BODY=2_000_000;
+const readBody=async request=>{if(Number(request.headers.get("content-length")||0)>MAX_BODY)return null;const b=await request.json().catch(()=>null);return b&&typeof b==="object"&&!Array.isArray(b)?b:null};
 // Nama yang mudah dibaca untuk Riwayat Aktivitas (murid: n, pelatih/unit: name)
 const labelOf=d=>{if(!d||typeof d!=="object")return "";const v=d.n||d.name||"";return typeof v==="string"?v.slice(0,80):"";};
 // Setiap simpan/hapus dari admin dicatat, supaya perubahan data bisa ditelusuri
